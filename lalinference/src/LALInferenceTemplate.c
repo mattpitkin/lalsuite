@@ -38,7 +38,6 @@
 #include <lal/XLALError.h>
 #include <lal/LIGOMetadataRingdownUtils.h>
 #include <lal/LALSimInspiral.h>
-#include "../../lalsimulation/src/LALSimInspiralPNCoefficients.c"
 #include <lal/LALInferenceTemplate.h>
 
 #define PROGRAM_NAME "LALInferenceTemplate.c"
