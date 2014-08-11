@@ -762,6 +762,8 @@ class LALInferencePipelineDAG(pipeline.CondorDAG):
     pagedir=os.path.join(self.webdir,evstring,myifos)
     mkdirs(pagedir)
     respagenode=self.add_results_page_node(outdir=pagedir)
+    if self.config.has_option('input','injection-file') and event.event_id is not None:
+        respagenode.set_injection(self.config.get('input','injection-file'),event.event_id)
     map(respagenode.add_engine_parent, enginenodes)
     if event.GID is not None:
       if self.config.has_option('analysis','upload-to-gracedb'):
@@ -784,6 +786,9 @@ class LALInferencePipelineDAG(pipeline.CondorDAG):
     respagenode=self.add_results_page_node(outdir=pagedir)
     respagenode.set_bayes_coherent_noise(enginenodes[0].get_B_file())
     respagenode.set_header_file(enginenodes[0].get_header_file())
+    if self.config.has_option('input','injection-file') and event.event_id is not None:
+        respagenode.set_injection(self.config.get('input','injection-file'),event.event_id)
+
     map(respagenode.add_engine_parent, enginenodes)
     if event.GID is not None:
       if self.config.has_option('analysis','upload-to-gracedb'):
@@ -1058,7 +1063,20 @@ class EngineJob(pipeline.CondorDAGJob,pipeline.AnalysisJob):
     snrpath=os.path.join(basepath,'SNR')
     self.snrpath=snrpath
     mkdirs(snrpath)
-    if ispreengine is False:
+    if ispreengine is True:
+      roqpath=os.path.join(basepath,'ROQdata')
+        self.roqpath=roqpath
+        mkdirs(roqpath)
+        self.engine='lalinferencemcmc'
+        exe=cp.get('condor',self.engine)
+        if cp.has_option('engine','site'):
+          if self.site is not None and self.self!='local':
+            universe='vanilla'
+          else:
+            universe="standard"
+        else:
+          universe='vanilla'
+    else:
       if self.engine=='lalinferencemcmc':
         exe=cp.get('condor','mpirun')
         self.binary=cp.get('condor',self.engine)
@@ -1074,23 +1092,15 @@ class EngineJob(pipeline.CondorDAGJob,pipeline.AnalysisJob):
         exe=cp.get('condor',self.engine)
         if site is not None and site!='local':
           universe='vanilla'
-        else: universe="standard"
+        else:
+          # Run in the vanilla universe when using resume
+          if cp.has_option('engine','resume'):
+            universe='vanilla'
+          else:
+            universe='standard'
       else:
         print 'LALInferencePipe: Unknown engine node type %s!'%(self.engine)
         sys.exit(1)
-    else:
-      roqpath=os.path.join(basepath,'ROQdata')
-      self.roqpath=roqpath
-      mkdirs(roqpath)
-      self.engine='lalinferencemcmc'
-      exe=cp.get('condor',self.engine)
-      if cp.has_option('engine','site'):
-        if self.site is not None and self.self!='local':
-          universe='vanilla'
-        else:
-          universe="standard"
-      else:
-        universe='vanilla'
 
     pipeline.CondorDAGJob.__init__(self,universe,exe)
     pipeline.AnalysisJob.__init__(self,cp,dax=dax)
