@@ -25,6 +25,7 @@
 #include <time.h>
 #include <complex>
 #include <cmath>
+#include <assert.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_eigen.h>
 #include <gsl/gsl_randist.h>
@@ -46,17 +47,21 @@
 
 
 // *** ONLY MODEL SPECIFIC PART OF THE CODE *** //
-void FillTrainingSet(gsl_matrix_complex *TS_gsl, const gsl_vector *xQuad, const gsl_vector_complex *wQuad, TrainingSetClass ts, const int rank)
+void FillTrainingSet(gsl_matrix_complex *TS_gsl, const gsl_vector *xQuad, const gsl_vector_complex *wQuad, TrainingSetClass ts, const int rank, GSParams *LALSIMparams)
 {
 
     fprintf(stdout,"Populating training set on proc %i...\n",rank);
 
     gsl_vector_complex *wv;
+    COMPLEX16FrequencySeries *hptilde = NULL, *hctilde = NULL;
+    REAL8TimeSeries *hplus = NULL;
+    REAL8TimeSeries *hcross = NULL;
     double *params;
     int start_ind, end_ind, global_i, matrix_size;
 
+    assert (ts.param_dim()==10); //this 10 is hardcoded to the max number of free parameters that XLALSimInspiralChooseFD/TD...() can take
 
-    params = new double[ts.param_dim()]; // for TF2 gravitational wave model this is (mass 1, mass 2)
+    //params = new double[ts.param_dim()]; // for TF2 gravitational wave model this is (mass 1, mass 2)
     wv     = gsl_vector_complex_alloc(xQuad->size);
 
     // -- decide which chunk of TS to compute on this proc -- //
@@ -73,9 +78,60 @@ void FillTrainingSet(gsl_matrix_complex *TS_gsl, const gsl_vector *xQuad, const 
     }
 
 
+
+   // approximant, phiRef, deltaF, inclination, distance, waveFlags, nonGRparams, ampO, phaseO should be set before this routine is called
+   // Get list of parameters
+   // Fill lalsimulation structures with model name and paraemter values
+   // Return gsl_vector to put into training set 
+for(int i = 0; i < matrix_size; i++){
+
+   global_i = start_ind + i;
+
+   LALSIMparams->m1 = ts.params()[global_i][0] * ts.param_scale()[0];
+   LALSIMparams->m2 = ts.params()[global_i][1] * ts.param_scale()[1]; 
+   LALSIMparams->s1x = ts.params()[global_i][2] * ts.param_scale()[2];  
+   LALSIMparams->s1y = ts.params()[global_i][3] * ts.param_scale()[3];
+   LALSIMparams->s1z = ts.params()[global_i][4] * ts.param_scale()[4]; 
+   LALSIMparams->s2x = ts.params()[global_i][5] * ts.param_scale()[5];
+   LALSIMparams->s2y = ts.params()[global_i][6] * ts.param_scale()[6];
+   LALSIMparams->s2z = ts.params()[global_i][7] * ts.param_scale()[7];
+   LALSIMparams->lambda1 = ts.params()[global_i][8] * ts.param_scale()[8];
+   LALSIMparams->lambda2 = ts.params()[global_i][9] * ts.param_scale()[9];
+
+   switch (params->domain) {
+        case LAL_SIM_DOMAIN_FREQUENCY:
+            XLALSimInspiralChooseFDWaveform(&hptilde, &hctilde, LALSIMparams->phiRef, 
+                    LALSIMparams->deltaF, LALSIMparams->m1, LALSIMparams->m2, LALSIMparams->s1x, 
+                    LALSIMparams->s1y, LALSIMparams->s1z, LALSIMparams->s2x, LALSIMparams->s2y, 
+                    LALSIMparams->s2z, LALSIMparams->f_min, LALSIMparams->f_max, LALSIMparams->fRef, 
+                    LALSIMparams->distance, LALSIMparams->inclination, LALSIMparams->lambda1, 
+                    LALSIMparams->lambda2, LALSIMparams->waveFlags, LALSIMparams->nonGRparams,
+                    LALSIMparams->ampO, LALSIMparams->phaseO, LALSIMparams->approximant);
+            break;
+        case LAL_SIM_DOMAIN_TIME:
+            XLALSimInspiralChooseTDWaveform(&hplus, &hcross, LALSIMparams->phiRef, 
+                    LALSIMparams->deltaT, LALSIMparams->m1, LALSIMparams->m2, LALSIMparams->s1x, 
+                    LALSIMparams->s1y, LALSIMparams->s1z, LALSIMparams->s2x, LALSIMparams->s2y, 
+                    LALSIMparams->s2z, LALSIMparams->f_min, LALSIMparams->fRef, 
+                    LALSIMparams->distance, LALSIMparams->inclination, LALSIMparams->lambda1, 
+                    LALSIMparams->lambda2, LALSIMparams->waveFlags,
+                    LALSIMparams->nonGRparams, LALSIMparams->ampO, LALSIMparams->phaseO,
+                    LALSIMparams->approximant);
+            break;
+        default:
+            XLALPrintError("Error: domain must be either TD or FD\n");
+    }
+
+   // convert hptilde and/or hctilde into gsl vectors
+   //wv = ....;
+   
+   gsl_matrix_complex_set_row(TS_gsl,i,wv)
+
+
+}
     // *** BEGIN MODEL SPECIFIC SECTION *** //
     // This is where a new model should go...add to the list and loop over paramters //
-    if(strcmp(ts.model(),"TaylorF2_PN3pt5") == 0){
+    /*if(strcmp(ts.model(),"TaylorF2_PN3pt5") == 0){
         fprintf(stdout,"Using the TaylorF2 spa approximant to PN=3.5\n");
 
         for(int i = 0; i < matrix_size; i++){
@@ -95,7 +151,7 @@ void FillTrainingSet(gsl_matrix_complex *TS_gsl, const gsl_vector *xQuad, const 
     else{
         std::cerr << "Approximant not supported!" << std::endl;
         exit(1);
-    }    
+    }  */  
     // *** END MODEL SPECIFIC SECTION *** //
 
 
