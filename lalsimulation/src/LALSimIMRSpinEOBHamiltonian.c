@@ -119,7 +119,7 @@ static double GSLSpinAlignedHamiltonianWrapper( double x, void *params );
  * The function returns a REAL8, which will be the value of the Hamiltonian if all goes well;
  * otherwise, it will return the XLAL REAL8 failure NaN.
  */
-static REAL8 XLALSimIMRSpinEOBHamiltonian( 
+REAL8 XLALSimIMRSpinEOBHamiltonian( 
                const REAL8    eta,                  /**<< Symmetric mass ratio */
                REAL8Vector    * restrict x,         /**<< Position vector */
                REAL8Vector    * restrict p,	    /**<< Momentum vector (tortoise radial component pr*) */
@@ -130,7 +130,7 @@ static REAL8 XLALSimIMRSpinEOBHamiltonian(
                INT4                      tortoise,  /**<< flag to state whether the momentum is the tortoise co-ord */
 	       SpinEOBHCoeffs *coeffs               /**<< Structure containing various coefficients */
                )
-{ int debugPK = 1;
+{ int debugPK = 0;
   /* Update the Hamiltonian coefficients, if spins are evolving */
   int UsePrec = 1;
   if ( UsePrec && coeffs->updateHCoeffs )

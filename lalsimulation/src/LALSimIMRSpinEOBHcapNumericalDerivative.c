@@ -368,13 +368,22 @@ static int XLALSpinHcapNumericalDerivative(
 			dTijdXk[i][j][k]  = 
 		(rData[i]*XLALKronecker(j,k) + XLALKronecker(i,k)*rData[j]) 
 		*(csi - 1.)/rMag2 
-		+ rData[i]*rData[j]*rData[k]*(csi - 1.)/rMag2/rMag*(-2./rMag + dcsi);
+		+ rData[i]*rData[j]*rData[k]/rMag2/rMag*(-2./rMag*(csi - 1.) + dcsi);
 		}
 	
   // Print out the T-matrix for comparison
-  if(debugPK){
+  if(debugPK){ printf("\nT-Matrix:\n");
 	  for( i = 0; i < 3; i++ )
 		printf("%le\t%le\t%le\n", Tmatrix[i][0], Tmatrix[i][1], Tmatrix[i][2]);
+		
+		for( i = 0; i<3; i++ )
+			{
+				printf("dT[%d][j]dX[k]:\n", i);
+				for( j =0; j <3; j++)
+					printf("%.12e\t%.12e\t%.12e\n", dTijdXk[i][j][0],
+							dTijdXk[i][j][1], dTijdXk[i][j][2]);
+				printf("\n");
+			}
 	}
 	
   /* Now calculate derivatives w.r.t. each parameter */
@@ -422,13 +431,13 @@ static int XLALSpinHcapNumericalDerivative(
   REAL8 sscaling1 = (mass1+mass2)*(mass1+mass2)/(mass1*mass1);
   REAL8 sscaling2 = (mass1+mass2)*(mass1+mass2)/(mass2*mass2);
 
-  printf("%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\n\n",
+  printf("values\n%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\n\n",
         (double) values[0], (double) values[1], (double) values[2], 
         (double) values[3], (double) values[4], (double) values[5], 
         (double) sscaling1*values[6], (double) sscaling1*values[7], 
         (double) sscaling1*values[8], (double) sscaling2*values[9],
         (double) sscaling2*values[10], (double) sscaling2*values[11] );
-  printf("%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t\n",
+  printf("tmpDvalues\n%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t\n",
         (double) tmpDValues[0], (double) tmpDValues[1], (double) tmpDValues[2], 
         (double) tmpDValues[3], (double) tmpDValues[4], (double) tmpDValues[5], 
         (double) tmpDValues[6], (double) tmpDValues[7], (double) tmpDValues[8], 
@@ -516,7 +525,7 @@ static int XLALSpinHcapNumericalDerivative(
   H = H * (mass1 + mass2);
   
   /* Now make the conversion */
-  /* rDot */
+  /* rVectorDot */
   for( i = 0; i < 3; i++ )
 	  for( j = 0, dvalues[i] = 0.; j < 3; j++ )
 		  dvalues[i] += tmpDValues[j+3]*Tmatrix[i][j];
@@ -538,7 +547,8 @@ static int XLALSpinHcapNumericalDerivative(
       H/(mass1+mass2), lMax, SpinAlignedEOBversion );
 
   /* Looking at the non-spinning model, I think we need to divide the flux by eta */
-  flux = flux / eta;
+  // FIXME
+  flux = 0;//flux / eta;
 
   pDotS1 = pData[0]*s1Data[0] + pData[1]*s1Data[1] + pData[2]*s1Data[2];
   pDotS2 = pData[0]*s2Data[0] + pData[1]*s2Data[1] + pData[2]*s2Data[2];
@@ -565,6 +575,30 @@ static int XLALSpinHcapNumericalDerivative(
 			for( k = 0, tmpPdotT3T11[i][j][l] = 0.; k < 3; k++ )
 				tmpPdotT3T11[i][j][l] += dTijdXk[i][k][j] * invTmatrix[k][l];
 
+  if(debugPK){
+  for( i = 0; i < 3; i++ )
+	for( j = 0; j < 1; j++ )
+		for( l = 0; l < 3; l++ )
+		{   double sum = 0;
+			for( k = 0; k < 3; k++ )
+				sum += dTijdXk[i][k][j] * invTmatrix[k][l];
+			printf("\n sum[%d][%d][%d] = %.12e", i, j, l, sum);
+			
+		}
+  printf("\n\n Printing dTdX * Tinverse:\n");
+  for(l = 0; l < 3; l++){
+  for( i =0; i  < 3; i++ )
+    for( j = 0; j<3; j++){
+      double sum = 0;
+      for( k=0; k<3; k++){
+        sum += dTijdXk[i][k][l] * invTmatrix[k][j];
+        printf("\n sum[%d][%d][%d] = %.12e", l, i, j, sum); 
+      }
+    }
+  }
+  }
+
+printf("\npData: {%.12e, %.12e, %.12e}\n", pData[0], pData[1], pData[2]);
   for( i = 0; i < 3; i++ )
 	for( j = 0; j < 3; j++ )
 		for( k = 0, tmpPdotT3T12[i][j] = 0.; k < 3; k++ )
@@ -582,6 +616,11 @@ static int XLALSpinHcapNumericalDerivative(
   for( i = 0; i < 3; i++ ) 
 	dvalues[i+3] = tmpPdotT1[i] + tmpPdotT2[i] + tmpPdotT3[i];
 	
+	if(debugPK){printf("\ntmpPdotT3 = ");
+  for(i=0; i<3; i++)
+	printf("%.12e ", tmpPdotT3[i]);
+  printf("\n");
+}
   //dvalues[3]  = - tmpDValues[0] - flux * values[3] / (omega*magL) + rrTerm2*Lx;
   //dvalues[4]  = - tmpDValues[1] - flux * values[4] / (omega*magL) + rrTerm2*Ly;
   //dvalues[5]  = - tmpDValues[2] - flux * values[5] / (omega*magL) + rrTerm2*Lz;
@@ -626,15 +665,15 @@ static int XLALSpinHcapNumericalDerivative(
   dvalues[12] = omega - alphadotcosi;
   dvalues[13] = alphadotcosi;
 
-  /*printf( " r = %e %e %e (mag = %e)\n", values[0], values[1], values[2], sqrt(values[0]*values[0] + values[1]*values[1] + values[2]*values[2]));
+  printf( " r = %e %e %e (mag = %e)\n", values[0], values[1], values[2], sqrt(values[0]*values[0] + values[1]*values[1] + values[2]*values[2]));
   printf( " p = %e %e %e (mag = %e)\n", values[3], values[4], values[5], sqrt(values[3]*values[3] + values[4]*values[4] + values[5]*values[5]));
   printf( "Derivatives:\n" );
   for ( i = 0; i < 12; i++ )
   {
-    printf( "\t%e", dvalues[i] );
+    printf( "%e\n", dvalues[i] );
   }
   printf( "\n" );
-  */
+  
 
   if ( debugPK || 1)
   {

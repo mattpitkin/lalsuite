@@ -19,7 +19,7 @@
 */
 
 /**
- * \author Craig Robinson, Yi Pan
+ * \author Craig Robinson, Yi Pan, Prayush Kumar
  *
  * \file
  *
@@ -33,6 +33,11 @@
  * \brief Functions for producing SEOBNRv2 waveforms for
  * spinning binaries, as described in
  * Taracchini et al. ( arXiv 1311.2544 ).
+ * 
+ * 
+ * \brief Functions for producing SEOBNRv3 waveforms for 
+ * precessing binaries of spinning compact objects, as described
+ * in Pan et al. ( arXiv 1307.6232 ).
  */
 
 #include <math.h>
@@ -1253,7 +1258,7 @@ int XLALSimIMRSpinEOBWaveform(
   values->data[10] = 0.;
   values->data[11] = 0.;*/
   
-  values->data[0] = 7.;
+  /*values->data[0] = 7.;
   values->data[1] = 0.;
   values->data[2] = 0.;
   values->data[3] = -0.01181688738719029;
@@ -1264,7 +1269,23 @@ int XLALSimIMRSpinEOBWaveform(
   values->data[8] = 0.001330438577632606 * (30./25.) * (30./25.);
   values->data[9] = 0.;
   values->data[10] = 0.;
-  values->data[11] = 0.01666666666666667 * (30./5.) * (30./5.);
+  values->data[11] = 0.01666666666666667 * (30./5.) * (30./5.);*/
+
+#if 1
+  values->data[0] = 3.5;
+  values->data[1] = 4.949747468305832;
+  values->data[2] = -3.5;
+  values->data[3] = -0.2502883144899609;
+  values->data[4] = 0.3341053793667105;
+  values->data[5] = 0.2458418190466291;
+  values->data[6] = -0.03727389203571741;// * (30./25.) * (30./25.);
+  values->data[7] = -0.49613957621055016;// * (30./25.) * (30./25.);
+  values->data[8] = 0.03998328699948254;// * (30./25.) * (30./25.);
+  values->data[9] = 0.42426406871192845; //* (30./5.) * (30./5.);
+  values->data[10] = 0.01 * (30./5.) * (30./5.);
+  values->data[11] = 0.42426406871192845;// * (30./5.) * (30./5.);
+#endif
+    
 
   /*values->data[0] = 0.130208309399131;
   values->data[1] = -7.60959058900954;
@@ -1606,9 +1627,10 @@ int XLALSimIMRSpinEOBWaveform(
           fflush(NULL);
   } 
   
+  FILE *out = NULL;
 #if 0
-  FILE *in  = fopen("/home/prayush/research/SEOBNRv2-3/case1q5/DynDataMathematica.dat", "r" );
-  FILE *out = fopen( "/home/prayush/research/SEOBNRv2-3/case1q5/TestDerivatives.dat", "w" );
+  FILE *in  = fopen("/home/prayush/research/SEOBNRv2-3/case1q5/TestEpsAndrea.dat","r");//DynDataMathematica.dat", "r" );
+  out = fopen( "/home/prayush/research/SEOBNRv2-3/case1q5/TestEpsAndreaOut.dat","w");//TestDerivatives.dat", "w" );
   double testValues[14], UNUSED testTime, UNUSED testDValues[14], UNUSED testH = 0., UNUSED testF = 0.;
   while (!feof(in))
   {
@@ -1618,25 +1640,96 @@ int XLALSimIMRSpinEOBWaveform(
 	  &testValues[8], &testValues[9], &testValues[10], &testValues[11] ) != 13)
 		break;
 
-	 for( i = 0; i < 3; i++ )
+	 /*for( i = 0; i < 3; i++ )
 	 {
 		 testValues[i+6] *= m1*m1/(mTotal*mTotal);
 		 testValues[i+6+3] *= m2*m2/(mTotal*mTotal); 
-	 }
+	 }*/
 		
 	 /*Compute stuff*/
-	 XLALSpinHcapNumericalDerivative( testTime, (REAL8*) testValues, 
-				(REAL8*) testDValues, (void*) &seobParams );
+	 //XLALSpinHcapNumericalDerivative( testTime, (REAL8*) testValues, 
+		//		(REAL8*) testDValues, (void*) &seobParams );
+   /* Wrapper spin vectors used to calculate sigmas */
+  s1VecOverMtMt.length = s2VecOverMtMt.length = 3;
+  s1VecOverMtMt.data   = s1DataNorm;
+  s2VecOverMtMt.data   = s2DataNorm;
+
+  s1Vec.length = s2Vec.length = 3;
+  s1Vec.data   = s1Data;
+  s2Vec.data   = s2Data;
+    
+     /* Set up parameters to obtain the Hamiltonian */
+     for ( unsigned int j = 0; j < values->length; j++ )
+     {
+		 values->data[j] = testValues[j];
+	  }
+
+	REAL8 rData[3], pData[3];
+	cartPosVec.data = rData;
+	cartMomVec.data = pData;
+	memcpy( rData, values->data, sizeof(rData) );
+    memcpy( pData, values->data+3, sizeof(pData) );
+
 	
-	 /*testH = XLALSimIMRSpinEOBHamiltonian( eta, &rVec, &pVec, 
-	  &s1norm, &s2norm, &sKerr, &sStar, seobParams.tortoise, seobParams.seobCoeffs ); 
-	 testH = testH * (mass1 + mass2);
-  
-	 testF  = XLALInspiralSpinFactorizedFlux( &polarDynamics, omega, &seobParams, H/(mass1+mass2), lMax, SpinAlignedEOBversion );
+  for( unsigned int j = 0; j < 3; j++ )
+  {
+    /* Store the dimensionless chi vector, i.e. \vec{S}_i/m_i^2 */
+    spin1[j] = values->data[j+6];// * (mTotal*mTotal)/(m1*m1);
+    spin2[j] = values->data[j+9];// * (mTotal*mTotal)/(m2*m2);
+    
+    values->data[j+6] *= m1*m1/(mTotal*mTotal);
+    values->data[j+9] *= m2*m2/(mTotal*mTotal);
+  }
+
+  memcpy( s1Data, spin1, sizeof(s1Data) );
+  memcpy( s2Data, spin2, sizeof(s2Data) );
+  memcpy( s1DataNorm, spin1, sizeof( s1DataNorm ) );
+  memcpy( s2DataNorm, spin2, sizeof( s2DataNorm ) );
+
+  for( unsigned int j = 0; j < 3; j++ )
+  {
+    s1Data[j] *= m1*m1;
+    s2Data[j] *= m2*m2;
+  }
+
+  for ( unsigned int j = 0; j < 3; j++ )
+  {
+    s1DataNorm[j] = s1Data[j]/mTotal/mTotal;
+    s2DataNorm[j] = s2Data[j]/mTotal/mTotal;
+  }
+ 
+XLALSimIMRSpinEOBCalculateSigmaKerr( sigmaKerr, m1, m2, 
+                              &s1Vec, &s2Vec );
+
+XLALSimIMRSpinEOBCalculateSigmaStar( sigmaStar, m1, m2, 
+                              &s1Vec, &s2Vec );
+
+	 printf("\n%.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e \n", 
+	  testTime,
+	  testValues[0], testValues[1], testValues[2], testValues[3], 
+	  testValues[4], testValues[5], testValues[6], testValues[7], 
+	  testValues[8], testValues[9], testValues[10], testValues[11]);
+
+  printf("\n%.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %d\n", 
+		eta, 
+		cartPosVec.data[0], cartPosVec.data[1], cartPosVec.data[2],
+		cartMomVec.data[0], cartMomVec.data[1], cartMomVec.data[2],
+		s1VecOverMtMt.data[0], s1VecOverMtMt.data[1], s1VecOverMtMt.data[2],
+		s2VecOverMtMt.data[0], s2VecOverMtMt.data[1], s2VecOverMtMt.data[2],
+		sigmaKerr->data[0], sigmaKerr->data[1], sigmaKerr->data[2],
+		sigmaStar->data[0], sigmaStar->data[1], sigmaStar->data[2],
+		seobParams.tortoise);
+fflush(NULL);
+seobParams.tortoise = 2;
+ham = XLALSimIMRSpinEOBHamiltonian( eta, &cartPosVec, &cartMomVec,
+         &s1VecOverMtMt, &s2VecOverMtMt,
+         sigmaKerr, sigmaStar, seobParams.tortoise, &seobCoeffs );
+  seobParams.tortoise = 1;
+	 /*testF  = XLALInspiralSpinFactorizedFlux( &polarDynamics, omega, &seobParams, H/(mass1+mass2), lMax, SpinAlignedEOBversion );
 	 testF /= eta;*/
 	  
 	 /*Write it*/
-	 fprintf(out, "%.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e\n", 
+	 /*fprintf(out, "%.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e\n", 
 	  testTime,
 	  testValues[0], testValues[1], testValues[2], testValues[3], 
 	  testValues[4], testValues[5], testValues[6], testValues[7], 
@@ -1644,7 +1737,11 @@ int XLALSimIMRSpinEOBWaveform(
 	  testDValues[0], testDValues[1], testDValues[2], testDValues[3], 
 	  testDValues[4], testDValues[5], testDValues[6], testDValues[7], 
 	  testDValues[8], testDValues[9], testDValues[10], testDValues[11]
-	   );
+	   );*/
+	  fprintf(out, "%.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e %.16e \n", 
+				testValues[0], testValues[1], testValues[2], testValues[3], 
+	  testValues[4], testValues[5], testValues[6], testValues[7], 
+	  testValues[8], testValues[9], testValues[10], testValues[11], ham);
  }
  fclose( out );
  fclose( in );
@@ -1698,7 +1795,7 @@ int XLALSimIMRSpinEOBWaveform(
   REAL8 *vphi   = dynamics->data+13*retLen;
   REAL8 *phpart2= dynamics->data+14*retLen;
 
-  FILE *out = fopen( "seobDynamics.dat", "w" );
+  out = fopen( "seobDynamics.dat", "w" );
   for ( i = 0; i < retLen; i++ )
   {
     fprintf( out, "%.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e\n", 
