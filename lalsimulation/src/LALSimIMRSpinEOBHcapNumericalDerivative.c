@@ -548,13 +548,14 @@ static int XLALSpinHcapNumericalDerivative(
 
   /* Looking at the non-spinning model, I think we need to divide the flux by eta */
   // FIXME
-  flux = 0;//flux / eta;
+  flux = flux / eta;
 
   pDotS1 = pData[0]*s1Data[0] + pData[1]*s1Data[1] + pData[2]*s1Data[2];
   pDotS2 = pData[0]*s2Data[0] + pData[1]*s2Data[1] + pData[2]*s2Data[2];
   rrTerm2 = 8./15. *eta*eta * pow(omega,8./3.)/(magL*magL*r) * ((61.+48.*mass2/mass1)*pDotS1 + (61.+48.*mass1/mass2)*pDotS2);
 
-  //printf( "rrForce = %e %e %e\n", - flux * values[3] / (omega*magL), - flux * values[4] / (omega*magL), - flux * values[5] / (omega*magL)) ;
+  printf("omega = %e \n flux = %e \n Lmag = %e\n", omega, flux, magL );
+  printf( "rrForce = %e %e %e\n", - flux * values[3] / (omega*magL), - flux * values[4] / (omega*magL), - flux * values[5] / (omega*magL)) ;
 
   /* Now pDot */
   /* Compute the first and second terms in eq. A5 of 0912.3466 */

@@ -161,6 +161,12 @@ static REAL8 XLALInspiralSpinFactorizedFlux(
 	/* ************************************************* */
 	
 	/* Re-compute the spinning coefficients for hLM */
+        //debugPK
+        printf("Re-calculating waveform coefficients in the Flux function with chiS, chiA = %e, %e!\n", chiS, chiA);
+        chiS = 0.3013893215145375; chiA = -0.2943634070572906;
+        printf("Changed them to the correct values = %e, %e!\n", chiS, chiA );
+
+
 	if ( XLALSimIMREOBCalcSpinFacWaveformCoefficients( ak->eobParams->hCoeffs, 
 			ak->eobParams->m1, ak->eobParams->m2, ak->eobParams->eta, 
 			tplspin, chiS, chiA, SpinAlignedEOBversion ) == XLAL_FAILURE )
@@ -175,6 +181,7 @@ static REAL8 XLALInspiralSpinFactorizedFlux(
   {
     for ( m = 1; m <= l; m++ )
     {
+      printf("\nGetting (%d, %d) mode for flux!\n", l, m);
 
       if ( XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform( &hLM, values, v, H,
             l, m, ak ) == XLAL_FAILURE )
@@ -201,9 +208,10 @@ static REAL8 XLALInspiralSpinFactorizedFlux(
         } 
         XLALSimIMREOBNonQCCorrection( &hNQC, values, omega, &nqcCoeffs );
         /* Eq. 16 */
-        hLM *= hNQC;
+        //FIXME
+        //hLM *= hNQC;
       }
-      //printf( "l = %d, m = %d, mag(hLM) = %.17e, omega = %.16e\n", l, m, sqrt(creal(hLM)*creal(hLM)+cimag(hLM)*cimag(hLM)), omega );
+      printf( "l = %d, m = %d, mag(hLM) = %.17e, omega = %.16e\n", l, m, sqrt(creal(hLM)*creal(hLM)+cimag(hLM)*cimag(hLM)), omega );
       /* Eq. 13 */
       flux += (REAL8)(m * m) * omegaSq * ( creal(hLM)*creal(hLM) + cimag(hLM)*cimag(hLM) );
     }

@@ -880,6 +880,15 @@ static INT4 XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform(
                 + hCoeffs->rho22v6l*eulerlogxabs + v*(hCoeffs->rho22v7 
                 + v*(hCoeffs->rho22v8 + hCoeffs->rho22v8l*eulerlogxabs 
                 + (hCoeffs->rho22v10 + hCoeffs->rho22v10l * eulerlogxabs)*v2)))))));
+                //FIXME
+                printf("PK:: rho22v2 = %.12e, rho22v3 = %.12e, rho22v4 = %.12e,\n rho22v5 = %.16e, rho22v6 = %.16e, rho22v6LOG = %.16e, \n rho22v7 = %.12e, rho22v8 = %.16e, rho22v8LOG = %.16e, \n rho22v10 = %.16e, rho22v10LOG = %.16e\n, rho22v6 = %.12e, rho22v8 = %.12e, rho22v10 = %.12e\n",
+                    hCoeffs->rho22v2, hCoeffs->rho22v3, hCoeffs->rho22v4,
+                    hCoeffs->rho22v5, hCoeffs->rho22v6, hCoeffs->rho22v6l,
+                    hCoeffs->rho22v7, hCoeffs->rho22v8, hCoeffs->rho22v8l,
+                    hCoeffs->rho22v10, hCoeffs->rho22v10l, 
+                    hCoeffs->rho22v6 + hCoeffs->rho22v6l*eulerlogxabs,
+                    hCoeffs->rho22v8 + hCoeffs->rho22v8l*eulerlogxabs,
+                    hCoeffs->rho22v10 + hCoeffs->rho22v10l * eulerlogxabs);
 	        break;
 	      case 1:
                 {
@@ -1080,7 +1089,9 @@ static INT4 XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform(
             XLAL_ERROR( XLAL_EINVAL );
             break; 
 	}
-
+        
+        // debugPK
+        printf("rho_%d_%d = %e \n", l, m, rholm);
         /* Raise rholm to the lth power */
         rholmPwrl = 1.0;
         i = l;
@@ -1102,10 +1113,10 @@ static INT4 XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform(
           rholmPwrl += auxflm;
         }
 
-        /*if (r > 8.5)
+        if (r > 0.0)
 	{
 	  printf("YP::dynamics variables in waveform: %i, %i, %e, %e\n",l,m,r,pp); 
-	  printf( "rholm^l = %.16e, Tlm = %.16e + i %.16e, \nSlm = %.16e, hNewton = %.16e + i %.16e, delta = %.16e\n", rholmPwrl, Tlm, 0, Slm, hNewton.re, hNewton.im, deltalm );}*/
+	  printf( "rholm^l = %.16e, Tlm = %.16e + i %.16e, \nSlm = %.16e, hNewton = %.16e + i %.16e, delta = %.16e\n", rholmPwrl, Tlm, 0.0, Slm, creal(hNewton), cimag(hNewton), 0.0 );}
         /* Put all factors in Eq. 17 together */
 	*hlm = Tlm * Slm * rholmPwrl;
         *hlm *= hNewton;
@@ -1138,6 +1149,8 @@ static int XLALSimIMREOBCalcSpinFacWaveformCoefficients(
           )
 {
   printf("Renewing hlm coefficients.\n");
+  //FIXME
+  printf("PK:: chiS = %.12e, chiA = %.12e\n", chiS, chiA);
   REAL8 a = tmpa * 0;
   REAL8 eta2 = eta*eta;
   REAL8 eta3 = eta2 * eta;
@@ -1232,11 +1245,13 @@ static int XLALSimIMREOBCalcSpinFacWaveformCoefficients(
   coeffs->rho22v10  = -16094530514677./533967033600.;
   coeffs->rho22v10l =  439877./55566.;
 
-  /*printf( "v2 = %.16e, v3 = %.16e, v4 = %.16e, v5 = %.16e\n"
+  printf("\nPK:: dM, eta, chiS, chiA while renewing hlm coeffs: %e, %e, %e, %e\n",
+      dM, eta, chiS, chiA);
+  printf( "PK:: Renewed rho-lm coeffs: v2 = %.16e, v3 = %.16e, v4 = %.16e, v5 = %.16e\n"
     "v6 = %.16e, v6l = %.16e v7 = %.16e v8 = %.16e, v8l = %.16e v10 = %.16e v10l = %.16e\n",
       coeffs->rho22v2, coeffs->rho22v3, coeffs->rho22v4, coeffs->rho22v5, coeffs->rho22v6,
       coeffs->rho22v6l, coeffs->rho22v7, coeffs->rho22v8, coeffs->rho22v8l, coeffs->rho22v10,
-      coeffs->rho22v10l );*/
+      coeffs->rho22v10l );
 
   if ( dM2 )
   {
