@@ -110,8 +110,11 @@ static REAL8 XLALInspiralSpinFactorizedFlux(
   v = cbrt( omega );
   
   /* Update the factorized multipole coefficients, w.r.t. new spins */
-  if ( 1 )
+  if ( 0 )
   {/*{{{*/
+    printf("\nValues inside Flux:\n");
+    for( int i = 0; i < 11; i++)
+        printf("values[%d] = %.12e\n", i, values->data[i]);
 	/* Assume that initial conditions are available at this point, to 
 	 * compute the chiS and chiA parameters. 
      * Calculate the values of chiS and chiA, as given in Eq.16 of 
@@ -163,7 +166,7 @@ static REAL8 XLALInspiralSpinFactorizedFlux(
 	/* Re-compute the spinning coefficients for hLM */
         //debugPK
         printf("Re-calculating waveform coefficients in the Flux function with chiS, chiA = %e, %e!\n", chiS, chiA);
-        chiS = 0.3013893215145375; chiA = -0.2943634070572906;
+        chiS = 0.3039435650957116; chiA = -0.2959424290852973;
         printf("Changed them to the correct values = %e, %e!\n", chiS, chiA );
 
 

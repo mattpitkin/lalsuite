@@ -1091,7 +1091,7 @@ static INT4 XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform(
 	}
         
         // debugPK
-        printf("rho_%d_%d = %e \n", l, m, rholm);
+        printf("rho_%d_%d = %.12e \n", l, m, rholm);
         /* Raise rholm to the lth power */
         rholmPwrl = 1.0;
         i = l;
@@ -1115,7 +1115,7 @@ static INT4 XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform(
 
         if (r > 0.0)
 	{
-	  printf("YP::dynamics variables in waveform: %i, %i, %e, %e\n",l,m,r,pp); 
+	  printf("YP::dynamics variables in waveform: %i, %i, v = %.12e\n",l,m,v); 
 	  printf( "rholm^l = %.16e, Tlm = %.16e + i %.16e, \nSlm = %.16e, hNewton = %.16e + i %.16e, delta = %.16e\n", rholmPwrl, Tlm, 0.0, Slm, creal(hNewton), cimag(hNewton), 0.0 );}
         /* Put all factors in Eq. 17 together */
 	*hlm = Tlm * Slm * rholmPwrl;

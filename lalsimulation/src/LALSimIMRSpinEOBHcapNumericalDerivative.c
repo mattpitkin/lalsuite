@@ -431,7 +431,8 @@ static int XLALSpinHcapNumericalDerivative(
   REAL8 sscaling1 = (mass1+mass2)*(mass1+mass2)/(mass1*mass1);
   REAL8 sscaling2 = (mass1+mass2)*(mass1+mass2)/(mass2*mass2);
 
-  printf("values\n%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\n\n",
+  //debugPK
+  printf("Computing derivatives for values\n%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\n\n",
         (double) values[0], (double) values[1], (double) values[2], 
         (double) values[3], (double) values[4], (double) values[5], 
         (double) sscaling1*values[6], (double) sscaling1*values[7], 
@@ -485,12 +486,15 @@ static int XLALSpinHcapNumericalDerivative(
   rcrossrDot[2] /= rcrossrDotMag;
   
   s1dotLN = (s1Data[0]*rcrossrDot[0] + s1Data[1]*rcrossrDot[1] 
-							+ s1Data[2]*rcrossrDot[2]) / (mass1*mass1);
+		        + s1Data[2]*rcrossrDot[2]) / (mass1*mass1);
   s2dotLN = (s2Data[0]*rcrossrDot[0] + s2Data[1]*rcrossrDot[1] 
-							+ s2Data[2]*rcrossrDot[2]) / (mass1*mass1);
+                	+ s2Data[2]*rcrossrDot[2]) / (mass2*mass2);
  
-  chiS = 0.5 * (s1dotL + s2dotL);
-  chiA = 0.5 * (s1dotL - s2dotL);
+  chiS = 0.5 * (s1dotLN + s2dotLN);
+  chiA = 0.5 * (s1dotLN - s2dotLN);
+
+  //debugPK
+  printf("chiS = %.12e, chiA = %.12e\n", chiS, chiA); fflush(NULL);
 
   /* Compute the test-particle limit spin of the deformed-Kerr background */
   /* TODO: Check this is actually the way it works in LAL */
