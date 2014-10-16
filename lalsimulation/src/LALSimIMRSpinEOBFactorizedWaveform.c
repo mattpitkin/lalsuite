@@ -737,7 +737,7 @@ static INT4 XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform(
     INT4 i;
 
     REAL8 eta;	
-	REAL8 r, pp, Omega, v2, /*vh, vh3,*/ k, hathatk, eulerlogxabs; //pr
+	UNUSED REAL8 r, pp, Omega, v2, /*vh, vh3,*/ k, hathatk, eulerlogxabs; //pr
         REAL8 rcrossp_x, rcrossp_y, rcrossp_z;
 	REAL8 Slm, rholm, rholmPwrl;
         REAL8 auxflm = 0.0;
@@ -847,7 +847,7 @@ static INT4 XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform(
 	else
 	{
 	  //Slm = v * pp;
-	  Slm = sqrt(rcrossp_x*rcrossp_x + rcrossp_y*rcrossp_y + rcrossp_z*rcrossp_z);
+	  Slm = v * sqrt(rcrossp_x*rcrossp_x + rcrossp_y*rcrossp_y + rcrossp_z*rcrossp_z);
 	}
         //printf( "Hreal = %e, Slm = %e, eta = %e\n", Hreal, Slm, eta );
 
