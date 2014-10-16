@@ -794,18 +794,38 @@ static INT4 XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform(
           {
             XLAL_ERROR( XLAL_EFUNC );
           }
+          //debugPK: Replace rW with r
+          vPhi  = r;// * cbrt(vPhi);
 
-          vPhi  = r * cbrt(vPhi);
+          printf("In XLALSimIMRSpinEOBFluxCalculateNewtonianMultipole, getting rW = %.12e\n",
+              vPhi);
           vPhi *= Omega;
           vPhi2 = vPhi*vPhi;
         }
         else
         {
+          vPhi = XLALSimIMRSpinEOBNonKeplerCoeff( values->data, params );
+
+          if ( XLAL_IS_REAL8_FAIL_NAN( vPhi ) )
+          {
+            XLAL_ERROR( XLAL_EFUNC );
+          }
+          //debugPK: Replace rW with r
+          vPhi  = r;// * cbrt(vPhi);
+
+          printf("In XLALSimIMRSpinEOBFluxCalculateNewtonianMultipole, getting rW = %.12e\n",
+              vPhi);
+          vPhi *= Omega;
+          vPhi2 = vPhi*vPhi;
+
           vPhi = v;
           vPhi2 = v2;
         }
 
         /* Calculate the newtonian multipole, 1st term in Eq. 17, given by Eq. A1 */
+        // debugPK
+        printf("Calculating hNewton, with v = %.12e, vPhi = %.12e, r = %.12e, Phi = %.12e, l = %d, m = %d\n",
+            v, vPhi, r, values->data[1], (UINT4) l, (UINT4) m );
         status = XLALSimIMRSpinEOBFluxCalculateNewtonianMultipole( &hNewton, 
             vPhi2, r, values->data[1], (UINT4)l, m, params->eobParams );
         if ( status == XLAL_FAILURE )
