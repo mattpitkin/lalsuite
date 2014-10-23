@@ -828,62 +828,50 @@ XLALSimIMRSpinEOBCalcOmega(
   HcapDerivParams params;
 
   /* Cartesian values for calculating the Hamiltonian */
-  REAL8 cartValues[14], dvalues;
+  REAL8 cartValues[14], dvalues[14];
   memcpy( cartValues, values, 14 * sizeof(REAL8) );
-  INT4 errcode;
+  INT4 errcode, i, j;
+  /* get derivatives */
   errcode = XLALSpinHcapNumericalDerivative( 0, values, dvalues, (void*) funcParams);
- 
-  /* Calculate r cross rDot */
-  REAL8 rcrossrdot_x, rcrossrdot_y, rcrossrdot_z;
-  rcrossrdot_x = values[1] * dvalues[5] - values[2] * dvalues[4];
-  rcrossrdot_y = values[2] * dvalues[3] - values[0] * dvalues[5];
-  rcrossrdot_z = values[0] * dvalues[4] - values[1] * dvalues[3];
   
-  /* Normalize it to a unit vector */
-  REAL8 rcrossrdot_mag;
-  rcrossrdot_mag = rcrossrdot_x * rcrossrdot_x + rcrossrdot_y * rcrossrdot_y + rcrossrdot_z * rcrossrdot_z;
-  rcrossrdot_x /= rcrossrdot_mag;
-  rcrossrdot_y /= rcrossrdot_mag;
-  rcrossrdot_z /= rcrossrdot_mag;
+  REAL8 rvec[3]; memcpy( rvec, values, 3 * sizeof(REAL8) );
+  REAL8 pvec[3]; memcpy( pvec, values[3], 3 * sizeof(REAL8) );
+  REAL8 s1vec[3]; memcpy( s1vec, values[6], 3 * sizeof(REAL8) );
+  REAL8 s2vec[3]; memcpy( s2vec, values[9], 3 * sizeof(REAL8) );
 
-  gsl_function F;
-  INT4         gslStatus;
+  REAL8 rdotvec[3]; memcpy( rdotvec, dvalues[3], 3 * sizeof(REAL8) );
 
-  REAL8 omega;
-  REAL8 r;
+  REAL8 rvecprime[3], pvecprime[3], s1vecprime[3], s2vecprime[3];
+  REAL8 rvectmp[3], pvectmp[3], s1vectmp[3], s2vectmp[3];
+  REAL8 LNhatprime[3], LNhatTmp[3];
 
-  /* The error in a derivative as measured by GSL */
-  REAL8 absErr;
-
-  /* Set up pointers for GSL */
-  params.values  = cartValues;
-  params.params  = funcParams;
-
-  F.function = &GSLSpinAlignedHamiltonianWrapper;
-  F.params   = &params;
+  /* Calculate r cross rDot */
+  REAL8 rcrossrdot[3]; 
+  cross_product( rvec, rdotvec, rcrossrdot );
+  REAL8 rcrossrdotNorm = sqrt(inner_product( rcrossrdot, rcrossrdot ));
+  for( i = 0; i < 3; i++ )
+    rcrossrdot[i] /= rcrossrdotNorm;
 
   //////////////////////////////////////////////////
   //
   REAL8 Rot1[3][3]; // Rotation matrix for prevention of blowing up
   REAL8 Rot2[3][3];
-  REAL8 LNhat[3] = {rcrossrdot_x, rcrossrdot_y, rcrossrdot_z};
+  REAL8 LNhat[3]; memcpy( LNhat, rcrossrdot, 3 * sizeof(REAL8) );
 
   REAL8 Xhat[3] = {1, 0, 0};
   REAL8 Yhat[3] = {0, 1, 0};
   REAL8 Zhat[3] = {0, 0, 1};
 
   REAL8 Xprime[3], Yprime[3], Zprime[3]; 
+  
   memcpy( Xprime, LNhat, 3*sizeof(REAL8) );
-  //Yprime[0] = Xprime[1] * Xhat[2] - Xhat[1] * Xprime[2];
-  //Yprime[1] = Xprime[2] * Xhat[0] - Xhat[2] * Xprime[0];
-  //Yprime[2] = Xprime[0] * Xhat[1] - Xhat[0] * Xprime[1];
   cross_product( Xprime, Xhat, Yprime );
-  REAL8 YprimeNorm = sqrt(Yprime[0]*Yprime[0] + Yprime[1]*Yprime[1] + Yprime[2]*Yprime[2]);
+  REAL8 YprimeNorm = sqrt(inner_product(Yprime, Yprime));
   for( i = 0; i < 3; i++ ) 
     Yprime[i] /= YprimeNorm;
 
   cross_product( Xprime, Yprime, Zprime );
-  REAL8 ZprimeNorm = sqrt(Zprime[0]*Zprime[0] + Zprime[1]*Zprime[1] + Zprime[2]*Zprime[2]);
+  REAL8 ZprimeNorm = sqrt(inner_product(Zprime, Zprime));
   for( i = 0; i < 3; i++ )
     Zprime[i] /= ZprimeNorm;
 
@@ -902,8 +890,77 @@ XLALSimIMRSpinEOBCalcOmega(
   Rot2[2][1] = inner_product( Zprime, Yhat );
   Rot2[2][2] = inner_product( Zprime, Zhat );
 
+  memcpy( rvectmp, 0, 3 * sizeof(REAL8) );
+  memcpy( pvectmp, 0, 3 * sizeof(REAL8) );
+  memcpy( s1vectmp, 0, 3 * sizeof(REAL8) );
+  memcpy( s2vectmp, 0, 3 * sizeof(REAL8) );
+  memcpy( rvecprime, 0, 3 * sizeof(REAL8) );
+  memcpy( pvecprime, 0, 3 * sizeof(REAL8) );
+  memcpy( s1vecprime, 0, 3 * sizeof(REAL8) );
+  memcpy( s2vecprime, 0, 3 * sizeof(REAL8) );
+  memcpy( LNhatprime, 0, 3 * sizeof(REAL8) );
+  memcpy( LNhatTmp, 0, 3 * sizeof(REAL8) );
 
+  for (i=0; i<3; i++)
+    for(j=0; j<3; j++)
+      {
+         rvectmp[i] += Rot1[i][j]*rvec[j];
+         pvectmp[i] += Rot1[i][j]*pvec[j];
+         s1tmp[i] += Rot1[i][j]*s1vec[j];
+         s2vectmp[i] += Rot1[i][j]*s2vec[j];
+         LNhatTmp[i] += Rot1[i][j]*LNhat[j];
+      }
+  for (i=0; i<3; i++)
+    for(j=0; j<3; j++)
+      {
+        rvecprime[i] += Rot2[i][j]*rvectmp[j];
+        pvecprime[i] += Rot2[i][j]*pvectmp[j];
+        s1vecprime[i] += Rot2[i][j]*s1vectmp[j];
+        s2vecprime[i] += Rot2[i][j]*s2vectmp[j];
+        LNhatprime[i] += Rot2[i][j]*LNhatTmp[j];
+      }
+
+  REAL8 cartvalues[14];
+  cartvalues[0] = rvecprime[0];
+  cartvalues[1] = rvecprime[1];
+  cartvalues[2] = rvecprime[2];
+  cartvalues[3] = pvecprime[0];
+  cartvalues[4] = pvecprime[1];
+  cartvalues[5] = pvecprime[2];
+  cartvalues[6] = s1vecprime[0];
+  cartvalues[7] = s1vecprime[1];
+  cartvalues[8] = s1vecprime[2];
+  cartvalues[9] = s2vecprime[0];
+  cartvalues[10] = s2vecprime[1];
+  cartvalues[11] = s2vecprime[2];
+
+  REAL8 polarvalues[6];
+  polarvalues[0] = sqrt(inner_product(rvecprime,rvecprime));
+  polarvalues[1] = acos(rvecprime[0] / polarvalues[0]);
+  polarvalues[2] = atan2(-rvecprime[1], rvecprime[2]);
+  polarvalues[3] = inner_product(rvecprime, pvecprime) / polarvalues[0];
+  polarvalues[4] = -inner_product(crossproduct(crossproduct(rvecprime, Xhat), rvecprime), pvecprime)
+                              / polarvalues[0] / sin(polarvalues[1]);
+  polarvalues[5] = -inner_product(crossproduct(rvecprime, Xhat), pvecprime);
+
+  
   /* Populate the Cartesian values vector */
+  gsl_function F;
+  INT4         gslStatus;
+
+  REAL8 omega;
+  REAL8 r;
+
+  /* The error in a derivative as measured by GSL */
+  REAL8 absErr;
+
+  /* Set up pointers for GSL */
+  params.values  = cartValues;
+  params.params  = funcParams;
+
+  F.function = &GSLSpinAlignedHamiltonianWrapper;
+  F.params   = &params;
+
   /* We can assume phi is zero wlog */
   memset( cartValues, 0, sizeof( cartValues ) );
   cartValues[0] = r = values[0];
