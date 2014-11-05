@@ -799,23 +799,7 @@ XLALSimIMRSpinEOBCalcOmega(
   HcapDerivParams params;
 
   /* Cartesian values for calculating the Hamiltonian */
-  REAL8 cartValues[14], dvalues;
-  memcpy( cartValues, values, 14 * sizeof(REAL8) );
-  INT4 errcode;
-  errcode = XLALSpinHcapNumericalDerivative( 0, values, dvalues, (void*) funcParams);
- 
-  /* Calculate r cross rDot */
-  REAL8 rcrossrdot_x, rcrossrdot_y, rcrossrdot_z;
-  rcrossrdot_x = values[1] * dvalues[5] - values[2] * dvalues[4];
-  rcrossrdot_y = values[2] * dvalues[3] - values[0] * dvalues[5];
-  rcrossrdot_z = values[0] * dvalues[4] - values[1] * dvalues[3];
-  
-  /* Normalize it to a unit vector */
-  REAL8 rcrossrdot_mag;
-  rcrossrdot_mag = rcrossrdot_x * rcrossrdot_x + rcrossrdot_y * rcrossrdot_y + rcrossrdot_z * rcrossrdot_z;
-  rcrossrdot_x /= rcrossrdot_mag;
-  rcrossrdot_y /= rcrossrdot_mag;
-  rcrossrdot_z /= rcrossrdot_mag;
+  REAL8 cartValues[6];
 
   gsl_function F;
   INT4         gslStatus;
