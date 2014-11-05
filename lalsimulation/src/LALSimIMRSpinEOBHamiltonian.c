@@ -93,14 +93,6 @@ static REAL8 XLALSimIMRSpinAlignedEOBNonKeplerCoeff(
                       SpinEOBParams         *funcParams
                       );
 
-static REAL8 inner_product( const REAL8 values1[],
-                             const REAL8 values2[]
-                           );
-
-static REAL8* cross_product( const REAL8 values1[],
-                             const REAL8 values2[],
-                             REAL8 result[] );
-
 static REAL8 XLALSimIMRSpinEOBCalcOmega(
                       const REAL8          values[],
                       SpinEOBParams        *funcParams
@@ -789,27 +781,6 @@ XLALSimIMRSpinAlignedEOBNonKeplerCoeff(
   return 1.0/(omegaCirc*omegaCirc*r3);
 }
 
-static REAL8 inner_product( const REAL8 values1[], 
-                             const REAL8 values2[]
-                             )
-{
-  REAL8 result = 0;
-  for( int i = 0; i < 3 ; i++ )
-    result += values1[i] * values2[i];
-
-  return result;
-}
-
-static REAL8* cross_product( const REAL8 values1[],
-                              const REAL8 values2[],
-                              REAL8 result[] )
-{
-  result[0] = values1[1]*values2[2] - values1[2]*values2[1];
-  result[1] = values1[2]*values2[0] - values1[0]*values2[2];
-  result[2] = values1[0]*values2[1] - values1[1]*values2[0];
-
-  return result;
-}
 /**
  * Function to calculate the value of omega for the spin-aligned EOB waveform.
  * Can NOT be used in precessing cases. This omega is defined as \f$\dot{y}/r\f$ by setting \f$y=0\f$.
@@ -861,47 +832,6 @@ XLALSimIMRSpinEOBCalcOmega(
 
   F.function = &GSLSpinAlignedHamiltonianWrapper;
   F.params   = &params;
-
-  //////////////////////////////////////////////////
-  //
-  REAL8 Rot1[3][3]; // Rotation matrix for prevention of blowing up
-  REAL8 Rot2[3][3];
-  REAL8 LNhat[3] = {rcrossrdot_x, rcrossrdot_y, rcrossrdot_z};
-
-  REAL8 Xhat[3] = {1, 0, 0};
-  REAL8 Yhat[3] = {0, 1, 0};
-  REAL8 Zhat[3] = {0, 0, 1};
-
-  REAL8 Xprime[3], Yprime[3], Zprime[3]; 
-  memcpy( Xprime, LNhat, 3*sizeof(REAL8) );
-  //Yprime[0] = Xprime[1] * Xhat[2] - Xhat[1] * Xprime[2];
-  //Yprime[1] = Xprime[2] * Xhat[0] - Xhat[2] * Xprime[0];
-  //Yprime[2] = Xprime[0] * Xhat[1] - Xhat[0] * Xprime[1];
-  cross_product( Xprime, Xhat, Yprime );
-  REAL8 YprimeNorm = sqrt(Yprime[0]*Yprime[0] + Yprime[1]*Yprime[1] + Yprime[2]*Yprime[2]);
-  for( i = 0; i < 3; i++ ) 
-    Yprime[i] /= YprimeNorm;
-
-  cross_product( Xprime, Yprime, Zprime );
-  REAL8 ZprimeNorm = sqrt(Zprime[0]*Zprime[0] + Zprime[1]*Zprime[1] + Zprime[2]*Zprime[2]);
-  for( i = 0; i < 3; i++ )
-    Zprime[i] /= ZprimeNorm;
-
-  // For Now , set first rotation matrix to identity
-  Rot1[0][0] = 1.; Rot1[0][1] = 0; Rot1[0][2] = 0;  
-  Rot1[1][0] = 0.; Rot1[1][1] = 1; Rot1[1][2] = 0;  
-  Rot1[2][0] = 1.; Rot1[2][1] = 0; Rot1[2][2] = 1;  
-
-  Rot2[0][0] = inner_product( Xprime, Xhat );
-  Rot2[0][1] = inner_product( Xprime, Yhat );
-  Rot2[0][2] = inner_product( Xprime, Zhat );
-  Rot2[1][0] = inner_product( Yprime, Xhat );
-  Rot2[1][1] = inner_product( Yprime, Yhat );
-  Rot2[1][2] = inner_product( Yprime, Zhat );
-  Rot2[2][0] = inner_product( Zprime, Xhat );
-  Rot2[2][1] = inner_product( Zprime, Yhat );
-  Rot2[2][2] = inner_product( Zprime, Zhat );
-
 
   /* Populate the Cartesian values vector */
   /* We can assume phi is zero wlog */
