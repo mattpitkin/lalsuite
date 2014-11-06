@@ -45,6 +45,8 @@
 #include <lal/LALSimInspiral.h>
 #include <lal/LALSimIMR.h>
 
+#include "LALSimIMRSpinEOBFactorizedWaveformCoefficients.c"
+
 #include "LALSimIMREOBNRv2.h"
 #include "LALSimIMRSpinEOB.h"
 
@@ -71,7 +73,7 @@ static INT4 XLALSimIMRSpinEOBGetSpinFactorizedWaveform(
                                 SpinEOBParams         * restrict params
                                 );
 #if UsePrecFunctions
-static INT4 XLALSimIMRSpinEOBGetPrecSpinFactorizedWaveform(
+static INT4 UNUSED XLALSimIMRSpinEOBGetPrecSpinFactorizedWaveform(
                                 COMPLEX16             * restrict hlm,
                                 REAL8Vector           * restrict values,
                                 const REAL8           v,
@@ -91,6 +93,7 @@ static INT4 XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform(
                                 SpinEOBParams         * restrict params
                                 );
 
+/*
 static int XLALSimIMREOBCalcSpinFacWaveformCoefficients(
           FacWaveformCoeffs * const coeffs,
           const REAL8               m1,
@@ -100,7 +103,7 @@ static int XLALSimIMREOBCalcSpinFacWaveformCoefficients(
           const REAL8               chiS,
           const REAL8               chiA,
           const UINT4               SpinAlignedEOBversion
-          );
+          );*/
 
 UNUSED static int XLALSimIMREOBCalcPrecNoSpinFacWaveformCoefficients(
           FacWaveformCoeffs * const coeffs,
@@ -136,7 +139,7 @@ UNUSED static int XLALSimIMREOBCalcPrecSpinFacWaveformCoefficients(
  * for given dynamical variables.
  */
 #if UsePrecFunctions
-static INT4 XLALSimIMRSpinEOBGetPrecSpinFactorizedWaveform( 
+static INT4 UNUSED XLALSimIMRSpinEOBGetPrecSpinFactorizedWaveform( 
                  COMPLEX16         * restrict hlm,    /**< OUTPUT, hlm waveforms */
                  REAL8Vector       * restrict values, /**< dyanmical variables */
                  const REAL8         v,               /**< velocity */
@@ -159,7 +162,7 @@ static INT4 XLALSimIMRSpinEOBGetPrecSpinFactorizedWaveform(
     INT4 status;
     INT4 i;
 	
-	UINT4 SpinAlignedEOBversion = params->seobCoeffs->SpinAlignedEOBversion;
+    UINT4 SpinAlignedEOBversion = params->seobCoeffs->SpinAlignedEOBversion;
 	
     REAL8 m1, m2, eta;	
     REAL8 spin1[3], spin2[3];
@@ -737,8 +740,8 @@ static INT4 XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform(
     INT4 i;
 
     REAL8 eta;	
-	REAL8 r, pp, Omega, v2, /*vh, vh3,*/ k, hathatk, eulerlogxabs; //pr
-        REAL8 rcrossp_x, rcrossp_y, rcrossp_z;
+	REAL8 UNUSED r, pp, Omega, v2, /*vh, vh3,*/ k, hathatk, eulerlogxabs; //pr
+    REAL8 UNUSED rcrossp_x, rcrossp_y, rcrossp_z;
 	REAL8 Slm, rholm, rholmPwrl;
         REAL8 auxflm = 0.0;
         REAL8 hathatksq4, hathatk4pi, Tlmprefac, Tlmprodfac;
@@ -776,15 +779,17 @@ static INT4 XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform(
           return XLAL_SUCCESS;
         }*/
         
-	r	= values->data[0];
-	//pr	= values->data[2];
-	pp	= values->data[3];
+	    //r = sqrt(values->data[0]*values->data[0] + values->data[1]*values->data[1] + values->data[2]*values->data[2]);
+	    //pr	= values->data[2];
+	    r   = values->data[0];
+	    pp	= values->data[3];
 
         rcrossp_x = values->data[1] * values->data[5] - values->data[2] * values->data[4];
         rcrossp_y = values->data[2] * values->data[3] - values->data[0] * values->data[5];
         rcrossp_z = values->data[0] * values->data[4] - values->data[1] * values->data[3];
 
-
+        //pp = sqrt( rcrossp_x*rcrossp_x + rcrossp_y*rcrossp_y + rcrossp_z*rcrossp_z );
+    
 	v2	= v * v;
         Omega   = v2 * v;
         //vh3     = Hreal * Omega;
@@ -830,6 +835,10 @@ static INT4 XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform(
 
         /* Calculate the newtonian multipole, 1st term in Eq. 17, given by Eq. A1 */
         // debugPK
+        printf("\nValues inside XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform:\n");
+        for( i = 0; i < 11; i++)
+          printf("values[%d] = %.12e\n", i, values->data[i]);
+        
         printf("Calculating hNewton, with v = %.12e, vPhi = %.12e, r = %.12e, Phi = %.12e, l = %d, m = %d\n",
             v, vPhi, r, values->data[1], (UINT4) l, (UINT4) m );
         status = XLALSimIMRSpinEOBFluxCalculateNewtonianMultipole( &hNewton, 
@@ -846,10 +855,10 @@ static INT4 XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform(
 	}
 	else
 	{
-	  //Slm = v * pp;
-	  Slm = sqrt(rcrossp_x*rcrossp_x + rcrossp_y*rcrossp_y + rcrossp_z*rcrossp_z);
+	  Slm = v * pp;
+	  //Slm = v * sqrt(rcrossp_x*rcrossp_x + rcrossp_y*rcrossp_y + rcrossp_z*rcrossp_z);
 	}
-        //printf( "Hreal = %e, Slm = %e, eta = %e\n", Hreal, Slm, eta );
+        printf( "In XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform: Hreal = %e, Slm = %e, eta = %e\n", Hreal, Slm, eta  );
 
         /* Calculate the absolute value of the Tail term, 
          * 3rd term in Eq. 17, given by Eq. A6, and Eq. (42) of
@@ -1163,7 +1172,7 @@ static INT4 XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform(
  * The coefficients are pre-computed and stored in the SpinEOBParams structure.
  * Appendix of the paper, and papers DIN (PRD 79, 064004 (2009)) and PBFRT (PRD 83, 064003 (2011)).
  */
-
+#if 0
 static int XLALSimIMREOBCalcSpinFacWaveformCoefficients(
           FacWaveformCoeffs * const coeffs, /**< OUTPUT, pre-computed waveform coefficients */
           const REAL8               m1,     /**< mass 1 */
@@ -1175,7 +1184,7 @@ static int XLALSimIMREOBCalcSpinFacWaveformCoefficients(
           const UINT4               SpinAlignedEOBversion  /**< 1 for SEOBNRv1; 2 for SEOBNRv2 */
           )
 {
-  printf("Renewing hlm coefficients.\n");
+  printf("In XLALSimIMREOBCalcSpinFacWaveformCoefficients: Renewing hlm coefficients.\n");
   //FIXME
   printf("PK:: chiS = %.12e, chiA = %.12e\n", chiS, chiA);
   REAL8 a = tmpa * 0;
@@ -1687,7 +1696,7 @@ static int XLALSimIMREOBCalcSpinFacWaveformCoefficients(
 
   return XLAL_SUCCESS;
 }
-
+#endif
 
 /**
  * This function calculates coefficients for hlm mode factorized-resummed 

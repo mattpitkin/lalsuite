@@ -117,4 +117,16 @@ struct tagHcapSphDeriv2Params
 }
 HcapSphDeriv2Params;
 
+/*
+int XLALSimIMREOBCalcSpinFacWaveformCoefficients(
+          FacWaveformCoeffs * const coeffs,
+          const REAL8               m1,
+          const REAL8               m2,
+          const REAL8               eta,
+          const REAL8               a,
+          const REAL8               chiS,
+          const REAL8               chiA,
+          const UINT4               SpinAlignedEOBversion
+          );*/
+
 #endif /* _LALSIMIMRSPINEOB_H */

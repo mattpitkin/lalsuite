@@ -48,6 +48,7 @@
 #include "LALSimIMRSpinEOBAuxFuncs.c"
 #include "LALSimIMRSpinEOBHamiltonian.c"
 #include "LALSimIMRSpinEOBFactorizedFlux.c"
+#include "LALSimIMRSpinEOBFactorizedWaveformCoefficients.c"
 #include "LALSimIMREOBFactorizedWaveform.c"
 
 //int UsePrec = 1;
@@ -58,8 +59,6 @@
  *
  *------------------------------------------------------------------------------------------
  */
-
-static REAL8 XLALKronecker( const INT4 i, const INT4 j );
 
 static double GSLSpinHamiltonianWrapper( double x, void *params );
 
@@ -83,12 +82,14 @@ static REAL8 XLALSpinHcapNumDerivWRTParam(
  *
  *------------------------------------------------------------------------------------------
  */
+#if 0 
 /* Calculate the kronecker delta */
 static REAL8 XLALKronecker( const INT4 i, const INT4 j )
 {
 	REAL8 d = ((i == j) ? 1. : 0.);
 	return d;
 }
+#endif
 
 /**
  * Function to calculate numerical derivatives of the spin EOB Hamiltonian,
@@ -934,5 +935,6 @@ static double GSLSpinHamiltonianWrapper( double x, void *params )
   if ( dParams->varyParam < 3 )dParams->params->tortoise = oldTortoise;
   return SpinEOBH;
 }
+
 
 #endif /* _LALSIMIMRSPINEOBHCAPNUMERICALDERIVATIVE_C */
