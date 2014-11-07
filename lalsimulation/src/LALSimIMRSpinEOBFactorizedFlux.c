@@ -65,6 +65,7 @@ static REAL8 XLALInspiralSpinFactorizedFlux(
 static REAL8 XLALInspiralPrecSpinFactorizedFlux(
                       REAL8Vector           *polvalues, /**< (r,\phi,p_r,p_\phi) */
                       REAL8Vector           *values, /**< dynamical variables */
+                      EOBNonQCCoeffs        *nqcCoeffs, /**< pre-computed NQC coefficients */
                       const REAL8           omega,   /**< orbital frequency */
                       SpinEOBParams         *ak,     /**< physical parameters */
                       const REAL8            H,      /**< real Hamiltonian */
@@ -240,6 +241,7 @@ static REAL8 XLALInspiralSpinFactorizedFlux(
 static REAL8 XLALInspiralPrecSpinFactorizedFlux(
                       REAL8Vector           *polvalues, /**< (r,\phi,p_r,p_\phi) */
                       REAL8Vector           *values, /**< dynamical variables */
+                      EOBNonQCCoeffs        *nqcCoeffs, /**< pre-computed NQC coefficients */
                       const REAL8           omega,   /**< orbital frequency */
                       SpinEOBParams         *ak,     /**< physical parameters */
                       const REAL8            H,      /**< real Hamiltonian */
@@ -255,7 +257,7 @@ static REAL8 XLALInspiralPrecSpinFactorizedFlux(
   COMPLEX16 hLM;
   INT4 l, m;
 
-  EOBNonQCCoeffs nqcCoeffs;
+  //EOBNonQCCoeffs nqcCoeffs;
 
 #ifndef LAL_NDEBUG
   if ( !values || !ak )
@@ -360,9 +362,9 @@ static REAL8 XLALInspiralPrecSpinFactorizedFlux(
       if ( l == 2 && m == 2 )
       {
         COMPLEX16 hNQC;
-        switch ( SpinAlignedEOBversion )
+        /*switch ( SpinAlignedEOBversion )
         {
-          case 1:
+          case 1:         
             XLALSimIMRGetEOBCalibratedSpinNQC( &nqcCoeffs, l, m, ak->eobParams->eta, ak->a );
             break;
           case 2:
@@ -373,11 +375,16 @@ static REAL8 XLALInspiralPrecSpinFactorizedFlux(
             XLALPrintError( "XLAL Error - %s: Unknown SEOBNR version!\nAt present only v1 and v2 are available.\n", __func__);
             XLAL_ERROR( XLAL_EINVAL );
             break;
-        } 
-        XLALSimIMREOBNonQCCorrection( &hNQC, polvalues, omega, &nqcCoeffs );
+        }*/
+        if(debugPK)printf( "\tl = %d, m = %d, NQC: a1 = %.16e, a2 = %.16e, a3 = %.16e, a4 = %.16e, a5 = %.16e\n\tb1 = %.16e, b2 = %.16e, b3 = %.16e, b4 = %.16e\n", 
+                           l, m, nqcCoeffs->a1, nqcCoeffs->a2, nqcCoeffs->a3, nqcCoeffs->a4, nqcCoeffs->a5, 
+                           nqcCoeffs->b1, nqcCoeffs->b2, nqcCoeffs->b3, nqcCoeffs->b4 );
+        XLALSimIMREOBNonQCCorrection( &hNQC, polvalues, omega, nqcCoeffs );
+        if(debugPK)printf( "\tl = %d, m = %d, hNQC = %.16e + i%.16e, |hNQC| = %.16e\n", l, m, 
+                           creal(hNQC), cimag(hNQC), sqrt(creal(hNQC)*creal(hNQC)+cimag(hLM)*cimag(hLM)) );
         /* Eq. 16 */
         //FIXME
-        //hLM *= hNQC;
+        hLM *= hNQC;
       }
       if(debugPK)printf( "\tl = %d, m = %d, mag(hLM) = %.17e, omega = %.16e\n", l, m, sqrt(creal(hLM)*creal(hLM)+cimag(hLM)*cimag(hLM)), omega );
       /* Eq. 13 */

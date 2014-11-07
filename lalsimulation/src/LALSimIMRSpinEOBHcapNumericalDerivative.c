@@ -168,10 +168,14 @@ static int XLALSpinHcapNumericalDerivative(
 	REAL8 tmpValues[12];
 	REAL8 Tmatrix[3][3], invTmatrix[3][3], dTijdXk[3][3][3];
 	REAL8 tmpPdotT1[3], tmpPdotT2[3], tmpPdotT3[3]; // 3 terms of Eq. A5
-	
+
+  /* NQC coefficients container */
+  EOBNonQCCoeffs *nqcCoeffs = NULL;
+
   /* Set up pointers for GSL */ 
   params.values  = values;
   params.params  = (SpinEOBParams *)funcParams;
+  nqcCoeffs      = params.params->nqcCoeffs;
 
   F.function = &GSLSpinHamiltonianWrapper;
   F.params   = &params;
@@ -518,7 +522,7 @@ static int XLALSpinHcapNumericalDerivative(
   params.params->sigmaStar = &sStar;
   params.params->sigmaKerr = &sKerr;
   params.params->a         = a;
- 
+
   XLALSimIMREOBCalcSpinFacWaveformCoefficients( 
 		params.params->eobParams->hCoeffs, mass1, mass2, eta, tplspin, 
 		chiS, chiA, SpinAlignedEOBversion );
@@ -551,7 +555,9 @@ static int XLALSpinHcapNumericalDerivative(
   
   memcpy( tmpValues, values, 12*sizeof(REAL8) );
   cartDynamics.data = tmpValues;
-  flux  = XLALInspiralPrecSpinFactorizedFlux( &polarDynamics, &cartDynamics, omega, params.params,
+  //debugPK
+  printf("params.params->a = %.12e, %.12e\n", (1.-2.*eta) * chiS + (mass1 - mass2)/(mass1 + mass2) * chiA, params.params->a); fflush(NULL);
+  flux  = XLALInspiralPrecSpinFactorizedFlux( &polarDynamics, &cartDynamics, nqcCoeffs, omega, params.params,
       H/(mass1+mass2), lMax, SpinAlignedEOBversion );
 
   /* Looking at the non-spinning model, I think we need to divide the flux by eta */

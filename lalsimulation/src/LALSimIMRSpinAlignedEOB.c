@@ -1113,11 +1113,20 @@ int XLALSimIMRSpinEOBWaveform(
   }
   memset( values->data, 0, values->length * sizeof( REAL8 ));
 
+  /* Vector to contain derivatives of ICs */
+  REAL8Vector *dvalues = NULL; 
+  if ( !(dvalues = XLALCreateREAL8Vector( 14 )) )
+  {
+    XLAL_ERROR(  XLAL_ENOMEM );
+  }
+  REAL8       rdotvec[3];
+  
   /* EOB spin vectors used in the Hamiltonian */
   REAL8Vector *sigmaStar = NULL;
   REAL8Vector *sigmaKerr = NULL;
   REAL8       a, tplspin;
   REAL8       chiS, chiA;
+  REAL8       spinNQC;
 
   /* Spins not scaled by the mass */
   REAL8 mSpin1[3], mSpin2[3];
@@ -1145,7 +1154,7 @@ int XLALSimIMRSpinEOBWaveform(
   REAL8Vector UNUSED *sigReVec = NULL, *sigImVec = NULL;
 
   /* Non-quasicircular correction */
-  EOBNonQCCoeffs UNUSED nqcCoeffs;
+  EOBNonQCCoeffs nqcCoeffs;
   COMPLEX16      UNUSED   hNQC;
   REAL8Vector    UNUSED   *ampNQC = NULL, *phaseNQC = NULL;
 
@@ -1404,10 +1413,15 @@ int XLALSimIMRSpinEOBWaveform(
   seobParams.a = a = sqrt( sigmaKerr->data[0]*sigmaKerr->data[0] 
 		+ sigmaKerr->data[1]*sigmaKerr->data[1] 
 		+ sigmaKerr->data[2]*sigmaKerr->data[2] );
-  //sigmaKerr->data[2];
+
   seobParams.s1Vec = &s1VecOverMtMt;
   seobParams.s2Vec = &s2VecOverMtMt;
-
+  if(debugPK)
+  {
+	  printf("\nseobParams.s?Vec pointing to %p, %p. \n They should be pointing to %p, %p\n",
+      seobParams.s1Vec, seobParams.s2Vec, &s1VecOverMtMt, &s2VecOverMtMt);
+  }
+  
   /* Cartesian vectors needed to calculate Hamiltonian */
   cartPosVec.length = cartMomVec.length = 3;
   cartPosVec.data = cartPosData;
@@ -1423,6 +1437,7 @@ int XLALSimIMRSpinEOBWaveform(
   seobParams.sigmaKerr    = sigmaKerr;
   seobParams.seobCoeffs   = &seobCoeffs;
   seobParams.eobParams    = &eobParams;
+  seobParams.nqcCoeffs    = &nqcCoeffs;
   eobParams.hCoeffs       = &hCoeffs;
   eobParams.prefixes      = &prefixes;
   seobCoeffs.SpinAlignedEOBversion = SpinAlignedEOBversion;
@@ -1470,16 +1485,16 @@ int XLALSimIMRSpinEOBWaveform(
    * STEP 1) Solve for initial conditions
    */
 
+  REAL8 temp32;
+  temp32 = fMin * inc; temp32 *= 2;
+
+  /*
   if( debugPK )
   {
     printf("Calling the XLALSimIMRSpinEOBInitialConditions function!\n");
     fflush(NULL);
   }
   
-  REAL8 temp32;
-  temp32 = fMin * inc; temp32 *= 2;
-
-  /*
   if ( XLALSimIMRSpinEOBInitialConditions( tmpValues2, m1, m2, fMin, inc,
                 	mSpin1, mSpin2, &seobParams ) == XLAL_FAILURE )
   {
@@ -1524,7 +1539,26 @@ int XLALSimIMRSpinEOBWaveform(
    * Calculate the values of chiS and chiA, as given in Eq.16 of 
    * Precessing EOB paper. Assuming \vec{L} to be pointing in the 
    * direction of \vec{r}\times\vec{p} */
-  REAL8 rcrossp[3], rcrosspMag, s1dotL, s2dotL;
+  if(debugPK)printf("\nReached the point where LN is to be calculated\n");
+  /* Calculate rDot = \f$\partial Hreal / \partial p_r\f$ */
+  memset( dvalues->data, 0, 14 * sizeof(REAL8) );
+  if(debugPK)printf("\n Going to calculate Rdot\n");
+  status = XLALSpinHcapRvecDerivative( 0, values->data, dvalues->data, (void*) &seobParams);
+  if(debugPK)printf("\nCalculated Rdot\n");
+  memcpy( rdotvec, dvalues->data, 3*sizeof(REAL8) );
+  /* Calculate r cross rDot */
+  REAL8 rcrossrdotNorm, rvec[3], rcrossrdot[3], s1dotLN, s2dotLN;; 
+  
+  memcpy( rvec, values->data, 3*sizeof(REAL8) );
+  cross_product( rvec, rdotvec, rcrossrdot );
+  rcrossrdotNorm = sqrt(inner_product( rcrossrdot, rcrossrdot ));
+  for( i = 0; i < 3; i++ )
+    rcrossrdot[i] /= rcrossrdotNorm;
+   
+  s1dotLN = inner_product( spin1, rcrossrdot );
+  s2dotLN = inner_product( spin2, rcrossrdot );
+    
+  REAL8 UNUSED rcrossp[3], rcrosspMag, s1dotL, s2dotL;
 
   rcrossp[0] = values->data[1]*values->data[5] - values->data[2]*values->data[4];
   rcrossp[1] = values->data[2]*values->data[3] - values->data[0]*values->data[5];
@@ -1539,10 +1573,8 @@ int XLALSimIMRSpinEOBWaveform(
   s1dotL = spin1[0]*rcrossp[0] + spin1[1]*rcrossp[1] + spin1[2]*rcrossp[2];
   s2dotL = spin2[0]*rcrossp[0] + spin2[1]*rcrossp[1] + spin2[2]*rcrossp[2];
 
-  chiS = 0.5 * (s1dotL + s2dotL);
-  chiA = 0.5 * (s1dotL - s2dotL);
-  //chiS = 0.5 * (spin1[2] + spin2[2]);
-  //chiA = 0.5 * (spin1[2] - spin2[2]);
+  chiS = 0.5 * (s1dotLN + s2dotLN);
+  chiA = 0.5 * (s1dotLN - s2dotLN);
 
   /* Compute the test-particle limit spin of the deformed-Kerr background */
   /* TODO: Check this is actually the way it works in LAL */
@@ -1600,32 +1632,60 @@ int XLALSimIMRSpinEOBWaveform(
     XLAL_ERROR( XLAL_EFUNC );
   }
 
+  /* ************************************************* */
+  /* Compute the coefficients for the NQC Corrections  */
+  /* ************************************************* */
+  spinNQC = (1.-2.*eta) * chiS + (m1 - m2)/(m1 + m2) * chiA;
+  switch ( SpinAlignedEOBversion )
+  {
+	  case 1:         
+	    if(debugPK)printf("\t NQC: spin used = %.12e\n", spinNQC);
+	    XLALSimIMRGetEOBCalibratedSpinNQC( &nqcCoeffs, 2, 2, eta, spinNQC );
+	    break;
+	  case 2:
+	    if(debugPK)printf("\t NQC: spins used = %.12e, %.12e\n", spinNQC, chiA);
+	    // XLALSimIMRGetEOBCalibratedSpinNQCv2( &nqcCoeffs, 2, 2, eta, ak->a );
+	    XLALSimIMRGetEOBCalibratedSpinNQC3D( &nqcCoeffs, 2, 2, eta, spinNQC, chiA );
+	    break;
+	  default:
+	    XLALPrintError( "XLAL Error - %s: Unknown SEOBNR version!\nAt present only v1 and v2 are available.\n", __func__);
+	    XLAL_ERROR( XLAL_EINVAL );
+	    break;
+  }
+  if(debugPK)printf("\tl = %d, m = %d, NQC: a1 = %.16e, a2 = %.16e, a3 = %.16e, a4 = %.16e, a5 = %.16e\n\tb1 = %.16e, b2 = %.16e, b3 = %.16e, b4 = %.16e\n", 
+                           2, 2, nqcCoeffs.a1, nqcCoeffs.a2, nqcCoeffs.a3, nqcCoeffs.a4, nqcCoeffs.a5, 
+                           nqcCoeffs.b1, nqcCoeffs.b2, nqcCoeffs.b3, nqcCoeffs.b4 );
+ 
+
   if ( debugPK )
   {
 	  /* Print out all mass parameters */
-	  printf("m1SI = %lf, m2SI = %lf, m1 = %lf, m2 = %lf\n",
+	  printf("m1SI = %.12e, m2SI = %.12e, m1 = %.12e, m2 = %.12e\n",
 			(double) m1SI, (double) m2SI, (double) m1, (double) m2 );
-	  printf("mTotal = %lf, mTScaled = %lf, eta = %lf\n", 
+	  printf("mTotal = %.12e, mTScaled = %.12e, eta = %.12e\n", 
 			(double) mTotal, (double) mTScaled, (double) eta );
 	  /* Print out all spin parameters */
-	  printf("spin1 = {%lf,%lf,%lf}, spin2 = {%lf,%lf,%lf}\n",
+	  printf("spin1 = {%.12e,%.12e,%.12e}, spin2 = {%.12e,%.12e,%.12e}\n",
 			(double) spin1[0], (double) spin1[1], (double) spin1[2],
 			(double) spin2[0], (double) spin2[1], (double) spin2[2]);
-	  printf("mSpin1 = {%lf,%lf,%lf}, mSpin2 = {%lf,%lf,%lf}\n",
+	  printf("mSpin1 = {%.12e,%.12e,%.12e}, mSpin2 = {%.12e,%.12e,%.12e}\n",
 			(double) mSpin1[0], (double) mSpin1[1], (double) mSpin1[2],
 			(double) mSpin2[0], (double) mSpin2[1], (double) mSpin2[2]);
-	  printf("s1Vec = {%lf,%lf,%lf}, s2Vec = {%lf,%lf,%lf}\n",
-	(double) seobParams.s1Vec->data[0], (double) seobParams.s1Vec->data[1],
-	(double) seobParams.s1Vec->data[2], (double) seobParams.s2Vec->data[0],
-	(double) seobParams.s2Vec->data[1], (double) seobParams.s2Vec->data[2]);
-	  printf("sigmaStar = {%lf,%lf,%lf}, sigmaKerr = {%lf,%lf,%lf}\n",
+	
+	  printf("sigmaStar = {%.12e,%.12e,%.12e}, sigmaKerr = {%.12e,%.12e,%.12e}\n",
 			(double) sigmaStar->data[0], (double) sigmaStar->data[1], 
 			(double) sigmaStar->data[2], (double) sigmaKerr->data[0],
 			(double) sigmaKerr->data[1], (double) sigmaKerr->data[2]);
-	  printf("a = %lf, tplspin = %lf, chiS = %lf, chiA = %lf\n", 
+	  printf("a = %.12e, tplspin = %.12e, chiS = %.12e, chiA = %.12e\n", 
 			(double) a, (double) tplspin, (double) chiS, (double) chiA);
 	  printf("a is used to compute Hamiltonian coefficients,\n tplspin and chiS and chiA for the multipole coefficients\n");
-          fflush(NULL);
+
+	  printf("s1Vec = {%.12e,%.12e,%.12e}\n", (double) s1VecOverMtMt.data[0], 
+	  (double) s1VecOverMtMt.data[1], (double) s1VecOverMtMt.data[2]);
+	  printf("s2Vec = {%.12e,%.12e,%.12e}\n", (double) s2VecOverMtMt.data[0],
+	  (double) s2VecOverMtMt.data[1], (double) s2VecOverMtMt.data[2]);
+
+      fflush(NULL);
   } 
   
   FILE *out = NULL;
@@ -1760,10 +1820,12 @@ ham = XLALSimIMRSpinEOBHamiltonian( eta, &cartPosVec, &cartMomVec,
   for( i = 0; i < 3; i++ )
   {
 	if( debugPK )
-		printf("\n r = {%f,%f,%f}\n", values->data[0], values->data[1],
-										values->data[2]);
+		printf("\n r = {%f,%f,%f}\n", 
+		values->data[0], values->data[1], values->data[2]);
 	fflush(NULL);
 }
+  
+  if(debugPK)printf("\n\n BEGINNING THE EVOLUTION\n\n");
   retLen = XLALAdaptiveRungeKutta4( integrator, &seobParams, values->data, 
 				0., 20./mTScaled, deltaT/mTScaled, &dynamics );
   if ( retLen == XLAL_FAILURE )
