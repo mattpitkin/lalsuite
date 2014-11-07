@@ -133,7 +133,7 @@ static int XLALSpinHcapNumericalDerivative(
 
   /* We need r, phi, pr, pPhi to calculate the flux */
   REAL8       r;
-  REAL8Vector polarDynamics;
+  REAL8Vector polarDynamics, cartDynamics;
   REAL8       polData[4];
 
   REAL8 mass1, mass2, eta;
@@ -548,7 +548,10 @@ static int XLALSpinHcapNumericalDerivative(
   rCrossV_z = values[0]*dvalues[1] - values[1]*dvalues[0];
 
   omega = sqrt( rCrossV_x*rCrossV_x + rCrossV_y*rCrossV_y + rCrossV_z*rCrossV_z ) / (r*r);
-  flux  = XLALInspiralSpinFactorizedFlux( &polarDynamics, omega, params.params,
+  
+  memcpy( tmpValues, values, 12*sizeof(REAL8) );
+  cartDynamics.data = tmpValues;
+  flux  = XLALInspiralPrecSpinFactorizedFlux( &polarDynamics, &cartDynamics, omega, params.params,
       H/(mass1+mass2), lMax, SpinAlignedEOBversion );
 
   /* Looking at the non-spinning model, I think we need to divide the flux by eta */
@@ -840,7 +843,7 @@ static double GSLSpinHamiltonianWrapper( double x, void *params )
   spin1.data = tmpVec+6;
   spin2.data = tmpVec+9;
   spin1norm.data = s1normData;
-  spin2norm.data = s1normData;
+  spin2norm.data = s2normData;
   sigmaKerr.data = sKerrData;
   sigmaStar.data = sStarData;
 

@@ -1417,7 +1417,7 @@ int XLALSimIMRSpinEOBWaveform(
 
   /* TODO: Insert potentially necessary checks on the arguments */
 
-  seobParams.alignedSpins = 1;
+  seobParams.alignedSpins = 0;
   seobParams.tortoise     = 1;
   seobParams.sigmaStar    = sigmaStar;
   seobParams.sigmaKerr    = sigmaKerr;
