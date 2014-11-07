@@ -376,10 +376,10 @@ static REAL8 XLALInspiralPrecSpinFactorizedFlux(
             XLAL_ERROR( XLAL_EINVAL );
             break;
         }*/
-        if(debugPK)printf( "\tl = %d, m = %d, NQC: a1 = %.16e, a2 = %.16e, a3 = %.16e, a4 = %.16e, a5 = %.16e\n\tb1 = %.16e, b2 = %.16e, b3 = %.16e, b4 = %.16e\n", 
-                           l, m, nqcCoeffs->a1, nqcCoeffs->a2, nqcCoeffs->a3, nqcCoeffs->a4, nqcCoeffs->a5, 
+       if(debugPK)printf("\tl = %d, m = %d, NQC: a1 = %.16e, a2 = %.16e, a3 = %.16e, a3S = %.16e, a4 = %.16e, a5 = %.16e\n\tb1 = %.16e, b2 = %.16e, b3 = %.16e, b4 = %.16e\n", 
+                           2, 2, nqcCoeffs->a1, nqcCoeffs->a2, nqcCoeffs->a3, nqcCoeffs->a3S, nqcCoeffs->a4, nqcCoeffs->a5, 
                            nqcCoeffs->b1, nqcCoeffs->b2, nqcCoeffs->b3, nqcCoeffs->b4 );
-        XLALSimIMREOBNonQCCorrection( &hNQC, polvalues, omega, nqcCoeffs );
+       XLALSimIMREOBNonQCCorrection( &hNQC, polvalues, omega, nqcCoeffs );
         if(debugPK)printf( "\tl = %d, m = %d, hNQC = %.16e + i%.16e, |hNQC| = %.16e\n", l, m, 
                            creal(hNQC), cimag(hNQC), sqrt(creal(hNQC)*creal(hNQC)+cimag(hLM)*cimag(hLM)) );
         /* Eq. 16 */

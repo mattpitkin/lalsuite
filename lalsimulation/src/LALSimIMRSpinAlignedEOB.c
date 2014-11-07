@@ -1416,11 +1416,6 @@ int XLALSimIMRSpinEOBWaveform(
 
   seobParams.s1Vec = &s1VecOverMtMt;
   seobParams.s2Vec = &s2VecOverMtMt;
-  if(debugPK)
-  {
-	  printf("\nseobParams.s?Vec pointing to %p, %p. \n They should be pointing to %p, %p\n",
-      seobParams.s1Vec, seobParams.s2Vec, &s1VecOverMtMt, &s2VecOverMtMt);
-  }
   
   /* Cartesian vectors needed to calculate Hamiltonian */
   cartPosVec.length = cartMomVec.length = 3;
@@ -1652,8 +1647,9 @@ int XLALSimIMRSpinEOBWaveform(
 	    XLAL_ERROR( XLAL_EINVAL );
 	    break;
   }
-  if(debugPK)printf("\tl = %d, m = %d, NQC: a1 = %.16e, a2 = %.16e, a3 = %.16e, a4 = %.16e, a5 = %.16e\n\tb1 = %.16e, b2 = %.16e, b3 = %.16e, b4 = %.16e\n", 
-                           2, 2, nqcCoeffs.a1, nqcCoeffs.a2, nqcCoeffs.a3, nqcCoeffs.a4, nqcCoeffs.a5, 
+  nqcCoeffs.a1 = nqcCoeffs.a2 = nqcCoeffs.a3 = nqcCoeffs.a3S = nqcCoeffs.a4 = nqcCoeffs.a5 = nqcCoeffs.b1 = nqcCoeffs.b2 = nqcCoeffs.b3 = nqcCoeffs.b4 = 0;
+  if(debugPK)printf("\tl = %d, m = %d, NQC: a1 = %.16e, a2 = %.16e, a3 = %.16e, a3S = %.16e, a4 = %.16e, a5 = %.16e\n\tb1 = %.16e, b2 = %.16e, b3 = %.16e, b4 = %.16e\n", 
+                           2, 2, nqcCoeffs.a1, nqcCoeffs.a2, nqcCoeffs.a3, nqcCoeffs.a3S, nqcCoeffs.a4, nqcCoeffs.a5, 
                            nqcCoeffs.b1, nqcCoeffs.b2, nqcCoeffs.b3, nqcCoeffs.b4 );
  
 

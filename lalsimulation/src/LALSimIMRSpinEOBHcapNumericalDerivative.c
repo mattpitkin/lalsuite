@@ -568,8 +568,8 @@ static int XLALSpinHcapNumericalDerivative(
   pDotS2 = pData[0]*s2Data[0] + pData[1]*s2Data[1] + pData[2]*s2Data[2];
   rrTerm2 = 8./15. *eta*eta * pow(omega,8./3.)/(magL*magL*r) * ((61.+48.*mass2/mass1)*pDotS1 + (61.+48.*mass1/mass2)*pDotS2);
 
-  printf("omega = %e \n flux = %e \n Lmag = %e\n", omega, flux, magL );
-  printf( "rrForce = %e %e %e\n", - flux * values[3] / (omega*magL), - flux * values[4] / (omega*magL), - flux * values[5] / (omega*magL)) ;
+  printf("omega = %.12e \n flux = %.12e \n Lmag = %.12e\n", omega, flux, magL );
+  printf( "rrForce = %.12e %.12e %.12e\n", - flux * values[3] / (omega*magL), - flux * values[4] / (omega*magL), - flux * values[5] / (omega*magL)) ;
 
   /* Now pDot */
   /* Compute the first and second terms in eq. A5 of 0912.3466 */
@@ -613,7 +613,7 @@ static int XLALSpinHcapNumericalDerivative(
   }
   }
 
-printf("\npData: {%.12e, %.12e, %.12e}\n", pData[0], pData[1], pData[2]);
+  printf("\npData: {%.12e, %.12e, %.12e}\n", pData[0], pData[1], pData[2]);
   for( i = 0; i < 3; i++ )
 	for( j = 0; j < 3; j++ )
 		for( k = 0, tmpPdotT3T12[i][j] = 0.; k < 3; k++ )
@@ -641,16 +641,16 @@ printf("\npData: {%.12e, %.12e, %.12e}\n", pData[0], pData[1], pData[2]);
   //dvalues[5]  = - tmpDValues[2] - flux * values[5] / (omega*magL) + rrTerm2*Lz;
 
   /* spin1 */
-  //printf( "Raw spin1 derivatives = %e %e %e\n", tmpDValues[6], tmpDValues[7], tmpDValues[8] );
-  //printf( "Raw spin2 derivatives = %e %e %e\n", tmpDValues[9], tmpDValues[10], tmpDValues[11] );
-  dvalues[6]  = mass1 * mass1 * eta * (tmpDValues[7]*values[8] - tmpDValues[8]*values[7]);
-  dvalues[7]  = mass1 * mass1 * eta * (tmpDValues[8]*values[6] - tmpDValues[6]*values[8]);
-  dvalues[8]  = mass1 * mass1 * eta * (tmpDValues[6]*values[7] - tmpDValues[7]*values[6]);
+  printf( "Raw spin1 derivatives = %.12e %.12e %.12e\n", tmpDValues[6], tmpDValues[7], tmpDValues[8] );
+  printf( "Raw spin2 derivatives = %.12e %.12e %.12e\n", tmpDValues[9], tmpDValues[10], tmpDValues[11] );
+  dvalues[6]  = eta * (tmpDValues[7]*values[8] - tmpDValues[8]*values[7]);
+  dvalues[7]  = eta * (tmpDValues[8]*values[6] - tmpDValues[6]*values[8]);
+  dvalues[8]  = eta * (tmpDValues[6]*values[7] - tmpDValues[7]*values[6]);
 
   /* spin2 */
-  dvalues[9]  = mass2 * mass2 * eta * (tmpDValues[10]*values[11] - tmpDValues[11]*values[10]);
-  dvalues[10] = mass2 * mass2 * eta * (tmpDValues[11]*values[9] - tmpDValues[9]*values[11]);
-  dvalues[11] = mass2 * mass2 * eta * (tmpDValues[9]*values[10] - tmpDValues[10]*values[9]);
+  dvalues[9]  = eta * (tmpDValues[10]*values[11] - tmpDValues[11]*values[10]);
+  dvalues[10] = eta * (tmpDValues[11]*values[9] - tmpDValues[9]*values[11]);
+  dvalues[11] = eta * (tmpDValues[9]*values[10] - tmpDValues[10]*values[9]);
 
   /* phase and precessing bit */
   dLx = dvalues[1]*values[5] - dvalues[2]*values[4]
@@ -685,7 +685,7 @@ printf("\npData: {%.12e, %.12e, %.12e}\n", pData[0], pData[1], pData[2]);
   printf( "Derivatives:\n" );
   for ( i = 0; i < 12; i++ )
   {
-    printf( "%e\n", dvalues[i] );
+    printf( "%.12e\n", dvalues[i] );
   }
   printf( "\n" );
   
