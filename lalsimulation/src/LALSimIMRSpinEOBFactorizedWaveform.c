@@ -1251,11 +1251,11 @@ static INT4 XLALSimIMRSpinEOBFluxGetPrecSpinFactorizedWaveform(
 
         //pp = sqrt( rcrossp_x*rcrossp_x + rcrossp_y*rcrossp_y + rcrossp_z*rcrossp_z );
     
-	v2	= v * v;
+	    v2	= v * v;
         Omega   = v2 * v;
         //vh3     = Hreal * Omega;
-	//vh	= cbrt(vh3);
-	eulerlogxabs = LAL_GAMMA + log( 2.0 * (REAL8)m * v );
+	    //vh	= cbrt(vh3);
+	    eulerlogxabs = LAL_GAMMA + log( 2.0 * (REAL8)m * v );
 
         /* Calculate the non-Keplerian velocity */
         if ( params->alignedSpins )
@@ -1289,9 +1289,6 @@ static INT4 XLALSimIMRSpinEOBFluxGetPrecSpinFactorizedWaveform(
               vPhi);
           vPhi *= Omega;
           vPhi2 = vPhi*vPhi;
-
-          vPhi = v;
-          vPhi2 = v2;
         }
 
         /* Calculate the newtonian multipole, 1st term in Eq. 17, given by Eq. A1 */
