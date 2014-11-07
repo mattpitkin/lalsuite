@@ -247,6 +247,7 @@ static REAL8 XLALInspiralPrecSpinFactorizedFlux(
                       const UINT4            SpinAlignedEOBversion /**< 1 for SEOBNRv1, 2 for SEOBNRv2 */
                      )
 {
+  int debugPK = 1;
 
   REAL8 flux = 0.0;
   REAL8 v;
@@ -348,7 +349,7 @@ static REAL8 XLALInspiralPrecSpinFactorizedFlux(
   {
     for ( m = 1; m <= l; m++ )
     {
-      printf("\nGetting (%d, %d) mode for flux!\n", l, m);
+      if(debugPK)printf("\nGetting (%d, %d) mode for flux!\n", l, m);
 
       if ( XLALSimIMRSpinEOBFluxGetPrecSpinFactorizedWaveform( &hLM, polvalues, values, v, H,
             l, m, ak ) == XLAL_FAILURE )
@@ -378,11 +379,12 @@ static REAL8 XLALInspiralPrecSpinFactorizedFlux(
         //FIXME
         //hLM *= hNQC;
       }
-      printf( "l = %d, m = %d, mag(hLM) = %.17e, omega = %.16e\n", l, m, sqrt(creal(hLM)*creal(hLM)+cimag(hLM)*cimag(hLM)), omega );
+      if(debugPK)printf( "\tl = %d, m = %d, mag(hLM) = %.17e, omega = %.16e\n", l, m, sqrt(creal(hLM)*creal(hLM)+cimag(hLM)*cimag(hLM)), omega );
       /* Eq. 13 */
       flux += (REAL8)(m * m) * omegaSq * ( creal(hLM)*creal(hLM) + cimag(hLM)*cimag(hLM) );
     }
   }
+  if(debugPK)printf( "\tFLUX = %.16e\n", flux * LAL_1_PI / 8.0 );
   return flux * LAL_1_PI / 8.0;
 }
 
