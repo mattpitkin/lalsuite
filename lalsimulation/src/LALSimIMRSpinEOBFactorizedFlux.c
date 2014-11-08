@@ -249,7 +249,7 @@ static REAL8 XLALInspiralPrecSpinFactorizedFlux(
                       const UINT4            SpinAlignedEOBversion /**< 1 for SEOBNRv1, 2 for SEOBNRv2 */
                      )
 {
-  int debugPK = 1;
+  int debugPK = 0;
 
   REAL8 flux = 0.0;
   REAL8 v;

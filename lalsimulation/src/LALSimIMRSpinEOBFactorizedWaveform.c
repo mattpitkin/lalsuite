@@ -1196,6 +1196,7 @@ static INT4 XLALSimIMRSpinEOBFluxGetPrecSpinFactorizedWaveform(
                  SpinEOBParams     * restrict params  /**< Spin EOB parameters */
                  )
 {
+	int debugPK = 0;
     /* Status of function calls */
     INT4 status;
     INT4 i;
@@ -1266,10 +1267,11 @@ static INT4 XLALSimIMRSpinEOBFluxGetPrecSpinFactorizedWaveform(
           {
             XLAL_ERROR( XLAL_EFUNC );
           }
-          //debugPK: Replace rW with r
+          
           vPhi  = r * cbrt(vPhi);
 
-          printf("In XLALSimIMRSpinEOBFluxCalculateNewtonianMultipole, getting rW = %.12e\n",
+          if(debugPK)
+            printf("In XLALSimIMRSpinEOBFluxCalculateNewtonianMultipole, getting rW = %.12e\n",
               vPhi);
           vPhi *= Omega;
           vPhi2 = vPhi*vPhi;
@@ -1282,10 +1284,11 @@ static INT4 XLALSimIMRSpinEOBFluxGetPrecSpinFactorizedWaveform(
           {
             XLAL_ERROR( XLAL_EFUNC );
           }
-          //debugPK: Replace rW with r
+          
           vPhi  = r * cbrt(vPhi);
 
-          printf("In XLALSimIMRSpinEOBFluxCalculateNewtonianMultipole, getting rW = %.12e\n",
+          if(debugPK)
+            printf("In XLALSimIMRSpinEOBFluxCalculateNewtonianMultipole, getting rW = %.12e\n",
               vPhi);
           vPhi *= Omega;
           vPhi2 = vPhi*vPhi;
@@ -1293,12 +1296,15 @@ static INT4 XLALSimIMRSpinEOBFluxGetPrecSpinFactorizedWaveform(
 
         /* Calculate the newtonian multipole, 1st term in Eq. 17, given by Eq. A1 */
         // debugPK
-        printf("\nValues inside XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform:\n");
-        for( i = 0; i < 11; i++)
-          printf("values[%d] = %.12e\n", i, values->data[i]);
-        
-        printf("Calculating hNewton, with v = %.12e, vPhi = %.12e, r = %.12e, Phi = %.12e, l = %d, m = %d\n",
-            v, vPhi, r, values->data[1], (UINT4) l, (UINT4) m );
+        if(debugPK)
+        {
+			printf("\nValues inside XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform:\n");
+			for( i = 0; i < 11; i++)
+				printf("values[%d] = %.12e\n", i, values->data[i]);
+			
+			printf("Calculating hNewton, with v = %.12e, vPhi = %.12e, r = %.12e, Phi = %.12e, l = %d, m = %d\n",
+                v, vPhi, r, values->data[1], (UINT4) l, (UINT4) m );
+        }
         status = XLALSimIMRSpinEOBFluxCalculateNewtonianMultipole( &hNewton, 
             vPhi2, r, values->data[1], (UINT4)l, m, params->eobParams );
         if ( status == XLAL_FAILURE )
@@ -1316,7 +1322,8 @@ static INT4 XLALSimIMRSpinEOBFluxGetPrecSpinFactorizedWaveform(
 	  Slm = v * pp;
 	  //Slm = v * sqrt(rcrossp_x*rcrossp_x + rcrossp_y*rcrossp_y + rcrossp_z*rcrossp_z);
 	}
-        printf( "In XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform: Hreal = %e, Slm = %e, eta = %e\n", Hreal, Slm, eta  );
+        if(debugPK)
+          printf( "In XLALSimIMRSpinEOBFluxGetSpinFactorizedWaveform: Hreal = %e, Slm = %e, eta = %e\n", Hreal, Slm, eta  );
 
         /* Calculate the absolute value of the Tail term, 
          * 3rd term in Eq. 17, given by Eq. A6, and Eq. (42) of
@@ -1375,7 +1382,7 @@ static INT4 XLALSimIMRSpinEOBFluxGetPrecSpinFactorizedWaveform(
                 + v*(hCoeffs->rho22v8 + hCoeffs->rho22v8l*eulerlogxabs 
                 + (hCoeffs->rho22v10 + hCoeffs->rho22v10l * eulerlogxabs)*v2)))))));
                 //FIXME
-                printf("PK:: rho22v2 = %.12e, rho22v3 = %.12e, rho22v4 = %.12e,\n rho22v5 = %.16e, rho22v6 = %.16e, rho22v6LOG = %.16e, \n rho22v7 = %.12e, rho22v8 = %.16e, rho22v8LOG = %.16e, \n rho22v10 = %.16e, rho22v10LOG = %.16e\n, rho22v6 = %.12e, rho22v8 = %.12e, rho22v10 = %.12e\n",
+                if(debugPK)printf("PK:: rho22v2 = %.12e, rho22v3 = %.12e, rho22v4 = %.12e,\n rho22v5 = %.16e, rho22v6 = %.16e, rho22v6LOG = %.16e, \n rho22v7 = %.12e, rho22v8 = %.16e, rho22v8LOG = %.16e, \n rho22v10 = %.16e, rho22v10LOG = %.16e\n, rho22v6 = %.12e, rho22v8 = %.12e, rho22v10 = %.12e\n",
                     hCoeffs->rho22v2, hCoeffs->rho22v3, hCoeffs->rho22v4,
                     hCoeffs->rho22v5, hCoeffs->rho22v6, hCoeffs->rho22v6l,
                     hCoeffs->rho22v7, hCoeffs->rho22v8, hCoeffs->rho22v8l,
@@ -1585,7 +1592,7 @@ static INT4 XLALSimIMRSpinEOBFluxGetPrecSpinFactorizedWaveform(
 	}
         
         // debugPK
-        printf("rho_%d_%d = %.12e \n", l, m, rholm);
+        if(debugPK)printf("rho_%d_%d = %.12e \n", l, m, rholm);
         /* Raise rholm to the lth power */
         rholmPwrl = 1.0;
         i = l;
@@ -1607,9 +1614,9 @@ static INT4 XLALSimIMRSpinEOBFluxGetPrecSpinFactorizedWaveform(
           rholmPwrl += auxflm;
         }
 
-        if (r > 0.0)
+        if (r > 0.0 && debugPK)
 	{
-	  printf("YP::dynamics variables in waveform: %i, %i, v = %.12e\n",l,m,v); 
+	  printf("YP::dynamics variables in waveform: %i, %i, r = %.12e, v = %.12e\n",l,m,r,v); 
 	  printf( "rholm^l = %.16e, Tlm = %.16e + i %.16e, \nSlm = %.16e, hNewton = %.16e + i %.16e, delta = %.16e\n", rholmPwrl, Tlm, 0.0, Slm, creal(hNewton), cimag(hNewton), 0.0 );}
         /* Put all factors in Eq. 17 together */
 	*hlm = Tlm * Slm * rholmPwrl;
@@ -1740,13 +1747,15 @@ static int XLALSimIMREOBCalcSpinFacWaveformCoefficients(
   coeffs->rho22v10  = -16094530514677./533967033600.;
   coeffs->rho22v10l =  439877./55566.;
 
-  printf("\nPK:: dM, eta, chiS, chiA while renewing hlm coeffs: %e, %e, %e, %e\n",
-      dM, eta, chiS, chiA);
-  printf( "PK:: Renewed rho-lm coeffs: v2 = %.16e, v3 = %.16e, v4 = %.16e, v5 = %.16e\n"
-    "v6 = %.16e, v6l = %.16e v7 = %.16e v8 = %.16e, v8l = %.16e v10 = %.16e v10l = %.16e\n",
-      coeffs->rho22v2, coeffs->rho22v3, coeffs->rho22v4, coeffs->rho22v5, coeffs->rho22v6,
-      coeffs->rho22v6l, coeffs->rho22v7, coeffs->rho22v8, coeffs->rho22v8l, coeffs->rho22v10,
-      coeffs->rho22v10l );
+  if(debugPK)
+  {
+    printf("\nPK:: dM, eta, chiS, chiA while renewing hlm coeffs: %e, %e, %e, %e\n",
+        dM, eta, chiS, chiA);
+    printf( "PK:: Renewed rho-lm coeffs: v2 = %.16e, v3 = %.16e, v4 = %.16e, v5 = %.16e\nv6 = %.16e, v6l = %.16e v7 = %.16e v8 = %.16e, v8l = %.16e v10 = %.16e v10l = %.16e\n",
+        coeffs->rho22v2, coeffs->rho22v3, coeffs->rho22v4, coeffs->rho22v5,
+        coeffs->rho22v6, coeffs->rho22v6l, coeffs->rho22v7, coeffs->rho22v8,
+        coeffs->rho22v8l, coeffs->rho22v10, coeffs->rho22v10l );
+  }
 
   if ( dM2 )
   {

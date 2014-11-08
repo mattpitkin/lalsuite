@@ -90,9 +90,13 @@ static int XLALSimIMREOBCalcSpinFacWaveformCoefficients(
           const UINT4               SpinAlignedEOBversion  /**< 1 for SEOBNRv1; 2 for SEOBNRv2 */
           )
 {
-  printf("In XLALSimIMREOBCalcSpinFacWaveformCoefficients: Renewing hlm coefficients.\n");
-  //FIXME
-  printf("PK:: chiS = %.12e, chiA = %.12e\n", chiS, chiA);
+  int debugPK = 0;
+  if(debugPK)
+  {
+    printf("In XLALSimIMREOBCalcSpinFacWaveformCoefficients: Renewing hlm coefficients.\n");
+    //FIXME
+    printf("PK:: chiS = %.12e, chiA = %.12e\n", chiS, chiA);
+  }
   REAL8 a = tmpa * 0;
   REAL8 eta2 = eta*eta;
   REAL8 eta3 = eta2 * eta;
@@ -187,13 +191,15 @@ static int XLALSimIMREOBCalcSpinFacWaveformCoefficients(
   coeffs->rho22v10  = -16094530514677./533967033600.;
   coeffs->rho22v10l =  439877./55566.;
 
-  printf("\nPK:: dM, eta, chiS, chiA while renewing hlm coeffs: %e, %e, %e, %e\n",
-      dM, eta, chiS, chiA);
-  printf( "PK:: Renewed rho-lm coeffs: v2 = %.16e, v3 = %.16e, v4 = %.16e, v5 = %.16e\n"
-    "v6 = %.16e, v6l = %.16e v7 = %.16e v8 = %.16e, v8l = %.16e v10 = %.16e v10l = %.16e\n",
-      coeffs->rho22v2, coeffs->rho22v3, coeffs->rho22v4, coeffs->rho22v5, coeffs->rho22v6,
-      coeffs->rho22v6l, coeffs->rho22v7, coeffs->rho22v8, coeffs->rho22v8l, coeffs->rho22v10,
-      coeffs->rho22v10l );
+  if(debugPK)
+  {
+    printf("\nPK:: dM, eta, chiS, chiA while renewing hlm coeffs: %e, %e, %e, %e\n",
+        dM, eta, chiS, chiA);
+    printf( "PK:: Renewed rho-lm coeffs: v2 = %.16e, v3 = %.16e, v4 = %.16e, v5 = %.16e\n v6 = %.16e, v6l = %.16e v7 = %.16e v8 = %.16e, v8l = %.16e v10 = %.16e v10l = %.16e\n",
+        coeffs->rho22v2, coeffs->rho22v3, coeffs->rho22v4, coeffs->rho22v5,
+        coeffs->rho22v6, coeffs->rho22v6l, coeffs->rho22v7, coeffs->rho22v8,
+        coeffs->rho22v8l, coeffs->rho22v10, coeffs->rho22v10l );
+  }
 
   if ( dM2 )
   {

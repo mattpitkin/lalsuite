@@ -1240,9 +1240,8 @@ int XLALSimIMRSpinEOBWaveform(
   amp0 = mTotal * LAL_MRSUN_SI / r;
   //amp0 = 4. * mTotal * LAL_MRSUN_SI * eta / r;
   
-#if 1
-  /*
-  values->data[0] = 19.9;
+#if 1  
+  /*values->data[0] = 19.9;
   values->data[1] = -1.04337949716e-22;
   values->data[2] = -5.04250029413e-19;
   values->data[3] = -0.000201238161271;
@@ -1258,6 +1257,46 @@ int XLALSimIMRSpinEOBWaveform(
   /*values->data[0] = 15.87;
   values->data[1] = 0.;
   values->data[2] = 0.;
+  values->data[3] = -0.0005229624453230818;
+  values->data[4] = 0.2779908426296164 ;
+  values->data[5] = -6.328418862992827e-05;
+  values->data[6] = -0.2704529501882914 * (30./25.) * (30./25.);
+  values->data[7] = -0.2168021314138335 * (30./25.) * (30./25.);
+  values->data[8] = 0.001330438577632606 * (30./25.) * (30./25.);
+  values->data[9] = 0.;
+  values->data[10] = 0.;
+  values->data[11] = 0.;*/
+  
+  values->data[0] = 25;
+  values->data[1] = -3.082799916127452e-23;
+  values->data[2] = -3.072190182565167e-19;
+  values->data[3] = -0.0001209294191296415;
+  values->data[4] = 0.2128271743957833;
+  values->data[5] = -4.271243397959221e-05;
+  values->data[6] = -0.433471963530112 * (30./25.) * (30./25.);
+  values->data[7] = -0.3474824199034984 * (30./25.) * (30./25.);
+  values->data[8] = 3.403039568888877e-17 * (30./25.) * (30./25.);
+  values->data[9] = 0.01348361657291579 * (30./5.) * (30./5.);
+  values->data[10] = 0.*(30./5.) * (30./5.);
+  values->data[11] = 0.009796420871541225 *(30./5.) * (30./5.);
+
+  /* These ones did not work with the cpp code -- underflow error
+  values->data[0] = 29.9;
+  values->data[1] = 0.;
+  values->data[2] = 0.;
+  values->data[3] = -6.95123137564155e-05;
+  values->data[4] = 0.1925025010802479;
+  values->data[5] = -3.168712384234343e-05;
+  values->data[6] = -0.433471963530112 * (30./25.) * (30./25.);
+  values->data[7] = -0.3474824199034985 * (30./25.) * (30./25.);
+  values->data[8] = 3.40168431617327e-17 * (30./25.) * (30./25.);
+  values->data[9] = 0.01348361657291579 * (30./5.) * (30./5.);
+  values->data[10] = 0.;
+  values->data[11] = 0.009796420871541223 *(30./5.) * (30./5.);*/
+  
+  /*values->data[0] = 15.87;
+  values->data[1] = 0.;
+  values->data[2] = 0.;
   values->data[3] = -0.000521675194648;
   values->data[4] = 0.278174373488;
   values->data[5] = -0.00012666165246;
@@ -1267,7 +1306,7 @@ int XLALSimIMRSpinEOBWaveform(
   values->data[9] = 0.;
   values->data[10] = 0.;
   values->data[11] = 0.;*/
-  
+    
   /*values->data[0] = 7.;
   values->data[1] = 0.;
   values->data[2] = 0.;
@@ -1281,7 +1320,7 @@ int XLALSimIMRSpinEOBWaveform(
   values->data[10] = 0.;
   values->data[11] = 0.01666666666666667 * (30./5.) * (30./5.);*/
 
-#if 1
+#if 0
   values->data[0] = 3.5;
   values->data[1] = 4.949747468305832;
   values->data[2] = -3.5;
@@ -1824,7 +1863,8 @@ ham = XLALSimIMRSpinEOBHamiltonian( eta, &cartPosVec, &cartMomVec,
   if(debugPK)printf("\n\n BEGINNING THE EVOLUTION\n\n");
   retLen = XLALAdaptiveRungeKutta4( integrator, &seobParams, values->data, 
 				0., 20./mTScaled, deltaT/mTScaled, &dynamics );
-  if ( retLen == XLAL_FAILURE )
+   if(debugPK)printf("\n\n FINISHED THE EVOLUTION\n\n");
+ if ( retLen == XLAL_FAILURE )
   {
     XLAL_ERROR( XLAL_EFUNC );
   }
@@ -1864,6 +1904,8 @@ ham = XLALSimIMRSpinEOBHamiltonian( eta, &cartPosVec, &cartMomVec,
     vphi[i]+phpart2[i] );
   }
   fclose( out );
+
+  printf("DYNAMICS WRITTEN!!!!\n" );
 
   /* We can now calculate the waveform */
   REAL8 vX, vY, vZ, rCrossV_x, rCrossV_y, rCrossV_z, vOmega;

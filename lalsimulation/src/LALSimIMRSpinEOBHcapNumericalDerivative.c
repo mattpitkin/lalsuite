@@ -107,7 +107,7 @@ static int XLALSpinHcapNumericalDerivative(
                  void             *funcParams /**<< EOB parameters */
                                )
 {
-  int debugPK = 1;
+  int debugPK = 0;
   static const REAL8 STEP_SIZE = 1.0e-4;
 
   static const INT4 lMax = 8;
