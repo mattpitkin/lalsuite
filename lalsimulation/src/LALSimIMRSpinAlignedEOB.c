@@ -67,7 +67,7 @@
 #include "LALSimIMRSpinEOBFactorizedWaveform.c"
 #include "LALSimIMRSpinEOBFactorizedFlux.c"
 
-int debugPK = 1;
+int debugPK = 0;
 
 #ifdef __GNUC__
 #define UNUSED __attribute__ ((unused))
@@ -102,6 +102,34 @@ XLALEOBSpinStopCondition(double UNUSED t,
   }
 
   params->eobParams->omega = omega;
+  return GSL_SUCCESS;
+}
+
+UNUSED static int
+XLALEOBSpinStopConditionBasedOnPR(double UNUSED t,
+                           const double values[],
+                           double dvalues[],
+                           void *funcParams
+                          )
+{
+  SpinEOBParams UNUSED *params = (SpinEOBParams *)funcParams;
+  
+  REAL8 r2, pDotr = 0;
+  REAL8 p[3], r[3];
+
+  memcpy( r, values, 3*sizeof(REAL8));
+  memcpy( p, values+3, 3*sizeof(REAL8));
+  
+  r2 = inner_product(r,r);
+  pDotr = inner_product( p, r ) / sqrt(r2);
+  
+  /* Terminate when omega reaches peak, and separation is < 6M */
+  //if ( omega < params->eobParams->omega )
+  if ( ( r2 < 36 && pDotr >= 0 ) || isnan( dvalues[3] ) || isnan (dvalues[2]) || isnan (dvalues[1]) || isnan (dvalues[0]) )
+  {
+    return 1;
+  }
+
   return GSL_SUCCESS;
 }
 
@@ -1231,8 +1259,8 @@ int XLALSimIMRSpinEOBWaveform(
   }
 
   /* Initialize parameters */
-  m1 = 25.0;//m1SI / LAL_MSUN_SI;
-  m2 = 5.0;//m2SI / LAL_MSUN_SI;
+  m1 = 80.0;//m1SI / LAL_MSUN_SI;
+  m2 = 16.0;//m2SI / LAL_MSUN_SI;
   mTotal = m1 + m2;
   mTScaled = mTotal * LAL_MTSUN_SI;
   eta    = m1 * m2 / (mTotal*mTotal);
@@ -1267,18 +1295,18 @@ int XLALSimIMRSpinEOBWaveform(
   values->data[10] = 0.;
   values->data[11] = 0.;*/
   
-  values->data[0] = 25;
-  values->data[1] = -3.082799916127452e-23;
-  values->data[2] = -3.072190182565167e-19;
-  values->data[3] = -0.0001209294191296415;
-  values->data[4] = 0.2128271743957833;
-  values->data[5] = -4.271243397959221e-05;
-  values->data[6] = -0.433471963530112 * (30./25.) * (30./25.);
-  values->data[7] = -0.3474824199034984 * (30./25.) * (30./25.);
-  values->data[8] = 3.403039568888877e-17 * (30./25.) * (30./25.);
+  /*values->data[0] = 25;
+  values->data[1] = -2.738042987012824e-23;
+  values->data[2] = -2.895313259628355e-19;
+  values->data[3] = -0.0001185485542182621;
+  values->data[4] = 0.2118058597394067;
+  values->data[5] = -4.006015947416696e-05;
+  values->data[6] = -0.4122563355465681 * (30./25.) * (30./25.);
+  values->data[7] = -0.3304754197472309 * (30./25.) * (30./25.);
+  values->data[8] = 0.1716761079860819 * (30./25.) * (30./25.);
   values->data[9] = 0.01348361657291579 * (30./5.) * (30./5.);
-  values->data[10] = 0.*(30./5.) * (30./5.);
-  values->data[11] = 0.009796420871541225 *(30./5.) * (30./5.);
+  values->data[10] = 2.117582368135751e-22 *(30./5.) * (30./5.);
+  values->data[11] = 0.009796420871541223 *(30./5.) * (30./5.);*/
 
   /* These ones did not work with the cpp code -- underflow error
   values->data[0] = 29.9;
@@ -1294,18 +1322,18 @@ int XLALSimIMRSpinEOBWaveform(
   values->data[10] = 0.;
   values->data[11] = 0.009796420871541223 *(30./5.) * (30./5.);*/
   
-  /*values->data[0] = 15.87;
+  values->data[0] = 15.87;
   values->data[1] = 0.;
   values->data[2] = 0.;
   values->data[3] = -0.000521675194648;
   values->data[4] = 0.278174373488;
   values->data[5] = -0.00012666165246;
-  values->data[6] = -0.270452950188;
-  values->data[7] = -0.216802131414;
-  values->data[8] = 0.00133043857763;
+  values->data[6] = -0.270452950188 * (mTotal/m1) * (mTotal/m1);
+  values->data[7] = -0.216802131414 * (mTotal/m1) * (mTotal/m1);
+  values->data[8] = 0.00133043857763 * (mTotal/m1) * (mTotal/m1);
   values->data[9] = 0.;
   values->data[10] = 0.;
-  values->data[11] = 0.;*/
+  values->data[11] = 0.;
     
   /*values->data[0] = 7.;
   values->data[1] = 0.;

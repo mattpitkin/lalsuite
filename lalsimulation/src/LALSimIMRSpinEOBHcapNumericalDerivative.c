@@ -436,7 +436,7 @@ static int XLALSpinHcapNumericalDerivative(
   REAL8 sscaling1 = (mass1+mass2)*(mass1+mass2)/(mass1*mass1);
   REAL8 sscaling2 = (mass1+mass2)*(mass1+mass2)/(mass2*mass2);
 
-  //debugPK
+  if(debugPK){
   printf("Computing derivatives for values\n%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\n\n",
         (double) values[0], (double) values[1], (double) values[2], 
         (double) values[3], (double) values[4], (double) values[5], 
@@ -448,7 +448,7 @@ static int XLALSpinHcapNumericalDerivative(
         (double) tmpDValues[3], (double) tmpDValues[4], (double) tmpDValues[5], 
         (double) tmpDValues[6], (double) tmpDValues[7], (double) tmpDValues[8], 
         (double) tmpDValues[9], (double) tmpDValues[10], (double) tmpDValues[11]);
-
+  }
   /* Calculate the orbital angular momentum */
   Lx = values[1]*values[5] - values[2]*values[4];
   Ly = values[2]*values[3] - values[0]*values[5];
@@ -498,8 +498,9 @@ static int XLALSpinHcapNumericalDerivative(
   chiS = 0.5 * (s1dotLN + s2dotLN);
   chiA = 0.5 * (s1dotLN - s2dotLN);
 
-  //debugPK
-  printf("chiS = %.12e, chiA = %.12e\n", chiS, chiA); fflush(NULL);
+  if(debugPK){
+	printf("chiS = %.12e, chiA = %.12e\n", chiS, chiA); fflush(NULL);
+  }
 
   /* Compute the test-particle limit spin of the deformed-Kerr background */
   /* TODO: Check this is actually the way it works in LAL */
@@ -555,8 +556,8 @@ static int XLALSpinHcapNumericalDerivative(
   
   memcpy( tmpValues, values, 12*sizeof(REAL8) );
   cartDynamics.data = tmpValues;
-  //debugPK
-  printf("params.params->a = %.12e, %.12e\n", (1.-2.*eta) * chiS + (mass1 - mass2)/(mass1 + mass2) * chiA, params.params->a); fflush(NULL);
+  if(debugPK){
+  printf("params.params->a = %.12e, %.12e\n", (1.-2.*eta) * chiS + (mass1 - mass2)/(mass1 + mass2) * chiA, params.params->a); fflush(NULL);}
   flux  = XLALInspiralPrecSpinFactorizedFlux( &polarDynamics, &cartDynamics, nqcCoeffs, omega, params.params,
       H/(mass1+mass2), lMax, SpinAlignedEOBversion );
 
@@ -568,8 +569,10 @@ static int XLALSpinHcapNumericalDerivative(
   pDotS2 = pData[0]*s2Data[0] + pData[1]*s2Data[1] + pData[2]*s2Data[2];
   rrTerm2 = 8./15. *eta*eta * pow(omega,8./3.)/(magL*magL*r) * ((61.+48.*mass2/mass1)*pDotS1 + (61.+48.*mass1/mass2)*pDotS2);
 
+  if(debugPK){
   printf("omega = %.12e \n flux = %.12e \n Lmag = %.12e\n", omega, flux, magL );
   printf( "rrForce = %.12e %.12e %.12e\n", - flux * values[3] / (omega*magL), - flux * values[4] / (omega*magL), - flux * values[5] / (omega*magL)) ;
+  }
 
   /* Now pDot */
   /* Compute the first and second terms in eq. A5 of 0912.3466 */
@@ -613,7 +616,7 @@ static int XLALSpinHcapNumericalDerivative(
   }
   }
 
-  printf("\npData: {%.12e, %.12e, %.12e}\n", pData[0], pData[1], pData[2]);
+  if(debugPK)printf("\npData: {%.12e, %.12e, %.12e}\n", pData[0], pData[1], pData[2]);
   for( i = 0; i < 3; i++ )
 	for( j = 0; j < 3; j++ )
 		for( k = 0, tmpPdotT3T12[i][j] = 0.; k < 3; k++ )
@@ -641,8 +644,10 @@ static int XLALSpinHcapNumericalDerivative(
   //dvalues[5]  = - tmpDValues[2] - flux * values[5] / (omega*magL) + rrTerm2*Lz;
 
   /* spin1 */
+  if(debugPK){
   printf( "Raw spin1 derivatives = %.12e %.12e %.12e\n", tmpDValues[6], tmpDValues[7], tmpDValues[8] );
   printf( "Raw spin2 derivatives = %.12e %.12e %.12e\n", tmpDValues[9], tmpDValues[10], tmpDValues[11] );
+  }
   dvalues[6]  = eta * (tmpDValues[7]*values[8] - tmpDValues[8]*values[7]);
   dvalues[7]  = eta * (tmpDValues[8]*values[6] - tmpDValues[6]*values[8]);
   dvalues[8]  = eta * (tmpDValues[6]*values[7] - tmpDValues[7]*values[6]);
@@ -680,6 +685,7 @@ static int XLALSpinHcapNumericalDerivative(
   dvalues[12] = omega - alphadotcosi;
   dvalues[13] = alphadotcosi;
 
+  if(debugPK){
   printf( " r = %e %e %e (mag = %e)\n", values[0], values[1], values[2], sqrt(values[0]*values[0] + values[1]*values[1] + values[2]*values[2]));
   printf( " p = %e %e %e (mag = %e)\n", values[3], values[4], values[5], sqrt(values[3]*values[3] + values[4]*values[4] + values[5]*values[5]));
   printf( "Derivatives:\n" );
@@ -688,9 +694,9 @@ static int XLALSpinHcapNumericalDerivative(
     printf( "%.12e\n", dvalues[i] );
   }
   printf( "\n" );
-  
+  }
 
-  if ( debugPK || 1)
+  if ( debugPK )
   {
 #if 0
     /* Print out all mass parameters */   
