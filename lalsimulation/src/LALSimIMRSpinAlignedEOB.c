@@ -1116,6 +1116,7 @@ int XLALSimIMRSpinEOBWaveform(
         const REAL8     INspin2[]
      )
 {
+  int importDynamicsAndGetDerivatives = 0;
 
   INT4 i, k;
   UINT4 j;
@@ -1180,6 +1181,8 @@ int XLALSimIMRSpinEOBWaveform(
   /* Cartesian vectors needed to calculate Hamiltonian */
   REAL8Vector cartPosVec, cartMomVec;
   REAL8       cartPosData[3], cartMomData[3];
+  REAL8 rcrossrdotNorm, rvec[3], rcrossrdot[3], s1dotLN, s2dotLN;; 
+  REAL8 UNUSED rcrossp[3], rcrosspMag, s1dotL, s2dotL;
 
   /* Signal mode */
   COMPLEX16   hLM;
@@ -1271,7 +1274,7 @@ int XLALSimIMRSpinEOBWaveform(
   mTotal = m1 + m2;
   mTScaled = mTotal * LAL_MTSUN_SI;
   eta    = m1 * m2 / (mTotal*mTotal);
-printf("YP: m1 = %f, m2 = %f\n",m1,m2);
+  printf("YP: m1 = %f, m2 = %f\n",m1,m2);
   amp0 = mTotal * LAL_MRSUN_SI / r;
   //amp0 = 4. * mTotal * LAL_MRSUN_SI * eta / r;
   
@@ -1295,25 +1298,25 @@ printf("YP: m1 = %f, m2 = %f\n",m1,m2);
   values->data[3] = -0.0005229624453230818;
   values->data[4] = 0.2779908426296164 ;
   values->data[5] = -6.328418862992827e-05;
-  values->data[6] = -0.2704529501882914 * (30./25.) * (30./25.);
-  values->data[7] = -0.2168021314138335 * (30./25.) * (30./25.);
-  values->data[8] = 0.001330438577632606 * (30./25.) * (30./25.);
+  values->data[6] = -0.2704529501882914 * (mTotal/m1) * (mTotal/m1);
+  values->data[7] = -0.2168021314138335 * (mTotal/m1) * (mTotal/m1);
+  values->data[8] = 0.001330438577632606 * (mTotal/m1) * (mTotal/m1);
   values->data[9] = 0.;
   values->data[10] = 0.;
   values->data[11] = 0.;*/
   
-  /*values->data[0] = 25;
+  values->data[0] = 25;
   values->data[1] = -2.738042987012824e-23;
   values->data[2] = -2.895313259628355e-19;
   values->data[3] = -0.0001185485542182621;
   values->data[4] = 0.2118058597394067;
   values->data[5] = -4.006015947416696e-05;
-  values->data[6] = -0.4122563355465681 * (30./25.) * (30./25.);
-  values->data[7] = -0.3304754197472309 * (30./25.) * (30./25.);
-  values->data[8] = 0.1716761079860819 * (30./25.) * (30./25.);
-  values->data[9] = 0.01348361657291579 * (30./5.) * (30./5.);
-  values->data[10] = 2.117582368135751e-22 *(30./5.) * (30./5.);
-  values->data[11] = 0.009796420871541223 *(30./5.) * (30./5.);*/
+  values->data[6] = -0.4122563355465681 * (mTotal/m1) * (mTotal/m1);
+  values->data[7] = -0.3304754197472309 * (mTotal/m1) * (mTotal/m1);
+  values->data[8] = 0.1716761079860819 * (mTotal/m1) * (mTotal/m1);
+  values->data[9] = 0.01348361657291579 * (mTotal/m2) * (mTotal/m2);
+  values->data[10] = 2.117582368135751e-22 * (mTotal/m2) * (mTotal/m2);
+  values->data[11] = 0.009796420871541223 * (mTotal/m2) * (mTotal/m2);
 
   /* These ones did not work with the cpp code -- underflow error
   values->data[0] = 29.9;
@@ -1322,14 +1325,14 @@ printf("YP: m1 = %f, m2 = %f\n",m1,m2);
   values->data[3] = -6.95123137564155e-05;
   values->data[4] = 0.1925025010802479;
   values->data[5] = -3.168712384234343e-05;
-  values->data[6] = -0.433471963530112 * (30./25.) * (30./25.);
-  values->data[7] = -0.3474824199034985 * (30./25.) * (30./25.);
-  values->data[8] = 3.40168431617327e-17 * (30./25.) * (30./25.);
-  values->data[9] = 0.01348361657291579 * (30./5.) * (30./5.);
+  values->data[6] = -0.433471963530112 * (mTotal/m1) * (mTotal/m1);
+  values->data[7] = -0.3474824199034985 * (mTotal/m1) * (mTotal/m1);
+  values->data[8] = 3.40168431617327e-17 * (mTotal/m1) * (mTotal/m1);
+  values->data[9] = 0.01348361657291579 * (mTotal/m2) * (mTotal/m2);
   values->data[10] = 0.;
-  values->data[11] = 0.009796420871541223 *(30./5.) * (30./5.);*/
+  values->data[11] = 0.009796420871541223 * (mTotal/m2) * (mTotal/m2);*/
   
-  values->data[0] = 15.87;
+  /*values->data[0] = 15.87;
   values->data[1] = 0.;
   values->data[2] = 0.;
   values->data[3] = -0.000521675194648;
@@ -1340,7 +1343,7 @@ printf("YP: m1 = %f, m2 = %f\n",m1,m2);
   values->data[8] = 0.00133043857763 * (mTotal/m1) * (mTotal/m1);
   values->data[9] = 0.;
   values->data[10] = 0.;
-  values->data[11] = 0.;
+  values->data[11] = 0.;*/
     
   /*values->data[0] = 7.;
   values->data[1] = 0.;
@@ -1348,12 +1351,12 @@ printf("YP: m1 = %f, m2 = %f\n",m1,m2);
   values->data[3] = -0.01181688738719029;
   values->data[4] = 0.4843132461494007;
   values->data[5] = -0.003144147080494646;
-  values->data[6] = -0.2704529501882914 * (30./25.) * (30./25.);
-  values->data[7] = -0.2168021314138335 * (30./25.) * (30./25.);
-  values->data[8] = 0.001330438577632606 * (30./25.) * (30./25.);
+  values->data[6] = -0.2704529501882914 * (mTotal/m1) * (mTotal/m1);
+  values->data[7] = -0.2168021314138335 * (mTotal/m1) * (mTotal/m1);
+  values->data[8] = 0.001330438577632606 * (mTotal/m1) * (mTotal/m1);
   values->data[9] = 0.;
   values->data[10] = 0.;
-  values->data[11] = 0.01666666666666667 * (30./5.) * (30./5.);*/
+  values->data[11] = 0.01666666666666667 * (mTotal/m2) * (mTotal/m2);*/
 
 #if 0
   values->data[0] = 3.5;
@@ -1362,12 +1365,12 @@ printf("YP: m1 = %f, m2 = %f\n",m1,m2);
   values->data[3] = -0.2502883144899609;
   values->data[4] = 0.3341053793667105;
   values->data[5] = 0.2458418190466291;
-  values->data[6] = -0.03727389203571741;// * (30./25.) * (30./25.);
-  values->data[7] = -0.49613957621055016;// * (30./25.) * (30./25.);
-  values->data[8] = 0.03998328699948254;// * (30./25.) * (30./25.);
-  values->data[9] = 0.42426406871192845; //* (30./5.) * (30./5.);
-  values->data[10] = 0.01 * (30./5.) * (30./5.);
-  values->data[11] = 0.42426406871192845;// * (30./5.) * (30./5.);
+  values->data[6] = -0.03727389203571741;// * (mTotal/m1) * (mTotal/m1);
+  values->data[7] = -0.49613957621055016;// * (mTotal/m1) * (mTotal/m1);
+  values->data[8] = 0.03998328699948254;// * (mTotal/m1) * (mTotal/m1);
+  values->data[9] = 0.42426406871192845; //* (mTotal/m2) * (mTotal/m2);
+  values->data[10] = 0.01 * (mTotal/m2) * (mTotal/m2);
+  values->data[11] = 0.42426406871192845;// * (mTotal/m2) * (mTotal/m2);
 #endif
     
 
@@ -1546,7 +1549,187 @@ printf("YP: m1 = %f, m2 = %f\n",m1,m2);
     XLALDestroyREAL8Vector( values );
     XLAL_ERROR( XLAL_EFUNC );
   }
+
+  /* ************************************************************ */
+  /* ***** Calculate the derivatives loading dynamics from a file */
+  /* ************************************************************ */
+if(importDynamicsAndGetDerivatives)
+{  
+  nqcCoeffs.a1 = nqcCoeffs.a2 = nqcCoeffs.a3 = nqcCoeffs.a3S = nqcCoeffs.a4 = nqcCoeffs.a5 = nqcCoeffs.b1 = nqcCoeffs.b2 = nqcCoeffs.b3 = nqcCoeffs.b4 = 0;
+  if(debugPK)printf("\tl = %d, m = %d, NQC: a1 = %.16e, a2 = %.16e, a3 = %.16e, a3S = %.16e, a4 = %.16e, a5 = %.16e\n\tb1 = %.16e, b2 = %.16e, b3 = %.16e, b4 = %.16e\n", 
+                           2, 2, nqcCoeffs.a1, nqcCoeffs.a2, nqcCoeffs.a3, nqcCoeffs.a3S, nqcCoeffs.a4, nqcCoeffs.a5, 
+                           nqcCoeffs.b1, nqcCoeffs.b2, nqcCoeffs.b3, nqcCoeffs.b4 );
+  FILE* dynfin = fopen( "Data_q_5_chi1_0.247214_chi2_0.352671_dSO_-69.5_dSS_2.75P.dat", "r" );
+  FILE* dynfout= fopen( "DynamicsDerivatives.dat", "w");
   
+  double tin, xin, yin, zin, pxin, pyin, pzin, s1xin, s1yin, s1zin, s2xin, s2yin, s2zin;
+  double UNUSED tmp1, tmp2;
+  REAL8 valuesin[14], dvaluesout[14]; 
+  double H, flux;
+   
+  REAL8Vector polarDynamics, cartDynamics;
+  REAL8 polData[4];
+  cartDynamics.data = valuesin;
+  polarDynamics.data= polData;
+  
+  int tmpj = 0;
+  if(debugPK){
+	  printf("Reading dynamics file to compute derivatives\n"); }
+  while(fscanf(dynfin, "%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le", 
+					&tin, &xin, &yin, &zin, &pxin, &pyin, &pzin, 
+					&s1xin, &s1yin, &s1zin, &s2xin, &s2yin, &s2zin 
+					//,&tmp1, &tmp2
+					 ) == 13)
+  {
+	printf("%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\n", 
+					tin, xin, yin, zin, pxin, pyin, pzin, 
+					s1xin, s1yin, s1zin, s2xin, s2yin, s2zin );
+					
+    valuesin[0] = xin;
+    valuesin[1] = yin;
+    valuesin[2] = zin;
+    valuesin[3] = pxin;
+    valuesin[4] = pyin;
+    valuesin[5] = pzin;
+    valuesin[6] = s1xin;
+    valuesin[7] = s1yin;
+    valuesin[8] = s1zin;
+    valuesin[9] = s2xin;
+    valuesin[10]= s2yin;
+    valuesin[11]= s2zin;
+
+    cartPosVec.data = cartPosData;
+    cartMomVec.data = cartMomData;
+    memcpy( cartPosData, valuesin, 3*sizeof( REAL8 ) );
+    memcpy( cartMomData, valuesin+3, 3*sizeof( REAL8 ) );
+     
+    /* Populate the SPIN structures 
+     * These set s{1,2}Vec, s{1,2}VecOverMtMt, which in turn set
+     * the spins stored in seobParams */
+    for( i=0; i<3; i++ )
+    {
+	  s1DataNorm[i] = valuesin[i+6];
+	  s1DataNorm[i] = valuesin[i+9];
+	  s1Data[i] = s1DataNorm[i] * mTotal * mTotal;
+	  s2Data[i] = s2DataNorm[i] * mTotal * mTotal;
+    }
+  
+    s1Vec.data   = s1Data;
+    s2Vec.data   = s2Data;
+   
+    s1VecOverMtMt.data   = s1DataNorm;
+    s2VecOverMtMt.data   = s2DataNorm;
+
+    seobParams.s1Vec = &s1VecOverMtMt;
+    seobParams.s2Vec = &s2VecOverMtMt;
+
+    if ( XLALSimIMRSpinEOBCalculateSigmaStar( sigmaStar, m1, m2, 
+                              &s1Vec, &s2Vec ) == XLAL_FAILURE )
+		printf("\nSomething went wrong evaluating SigmaStar in line %d of the input file\n", 
+			tmpj );
+	
+	if ( XLALSimIMRSpinEOBCalculateSigmaKerr( sigmaKerr, m1, m2, 
+                              &s1Vec, &s2Vec ) == XLAL_FAILURE )
+      printf("\nSomething went wrong evaluating SigmaKerr in line %d of the input file\n", 
+			tmpj );
+	
+      /* Calculate the value of a */
+    seobParams.a = a = sqrt( sigmaKerr->data[0]*sigmaKerr->data[0] 
+		+ sigmaKerr->data[1]*sigmaKerr->data[1] 
+		+ sigmaKerr->data[2]*sigmaKerr->data[2] );
+    printf("\nValue of a calculated = %le\n", a);
+
+    memset( dvaluesout, 0, 14*sizeof(REAL8) );
+    status = XLALSpinHcapRvecDerivative( 0, valuesin, dvaluesout, (void*) &seobParams);
+    memcpy( rdotvec, dvaluesout, 3*sizeof(REAL8) );
+    
+    /* Calculate r cross rDot */
+    cross_product( cartPosData, rdotvec, rcrossrdot );
+    rcrossrdotNorm = sqrt(inner_product( rcrossrdot, rcrossrdot ));
+    for( i = 0; i < 3; i++ )
+      rcrossrdot[i] /= rcrossrdotNorm;
+   
+    // Since s?Data have non-normalized spins, we need to divide by m?^2
+    s1dotLN = inner_product( s1Data, rcrossrdot ) / (m1*m1); 
+    s2dotLN = inner_product( s2Data, rcrossrdot ) / (m1*m1);  
+    chiS = 0.5 * (s1dotLN + s2dotLN);
+    chiA = 0.5 * (s1dotLN - s2dotLN);
+
+    switch ( SpinAlignedEOBversion )
+    {
+     case 1:
+       tplspin = 0.0;
+       break;
+     case 2:
+       tplspin = (1.-2.*eta) * chiS + (m1 - m2)/(m1 + m2) * chiA;
+       break;
+     default:
+       XLALPrintError( "XLAL Error - %s: Unknown SEOBNR version!\nAt present only v1 and v2 are available.\n", __func__);
+       XLAL_ERROR( XLAL_EINVAL );
+       break;
+    }
+    /* Populate the different structures */
+    if ( XLALSimIMRCalculateSpinEOBHCoeffs( &seobCoeffs, eta, a, 
+                          SpinAlignedEOBversion ) == XLAL_FAILURE )
+      printf("\nSomething went wrong evaluating XLALSimIMRCalculateSpinEOBHCoeffs in line %d of the input file\n", 
+			tmpj );
+
+    if ( XLALSimIMREOBCalcSpinFacWaveformCoefficients( &hCoeffs, m1, m2, eta, 
+        tplspin, chiS, chiA, SpinAlignedEOBversion ) == XLAL_FAILURE )
+      printf("\nSomething went wrong evaluating XLALSimIMRCalculateSpinEOBHCoeffs in line %d of the input file\n", 
+			tmpj );
+
+    /* CALCULATE THE DERIVATIVES */
+    memset( dvaluesout, 0, 14*sizeof(REAL8) );
+    if( XLALSpinHcapNumericalDerivative( (REAL8) tin, valuesin, dvaluesout, 
+								(void*) &seobParams ) != XLAL_SUCCESS )
+      printf("\nSomething went wrong evaluating derivatives in line %d of the input file\n", 
+			tmpj );
+    
+    /* CALCULATE THE HAMILTONIAN AND FLUX */
+    H = XLALSimIMRSpinEOBHamiltonian( eta, &cartPosVec, &cartMomVec, 
+			&s1VecOverMtMt, &s2VecOverMtMt, sigmaKerr, sigmaStar, 
+			seobParams.tortoise, seobParams.seobCoeffs ); 
+    H *= mTotal;
+
+    /* Calculate POLAR dynamics for Flux */
+    polData[0] = sqrt( inner_product(cartPosData, cartPosData) );
+    polData[1] = 0;
+    polData[2] = inner_product(cartPosData, cartMomData) / polData[0];
+    cross_product( cartPosData, cartMomData, rcrossp );
+    polData[3] = sqrt(inner_product(rcrossp, rcrossp));
+    omega = rcrossrdotNorm / (polData[0] * polData[0]);
+    
+    flux  = XLALInspiralPrecSpinFactorizedFlux( &polarDynamics, &cartDynamics, 
+              &nqcCoeffs, omega, &seobParams, H/mTotal, 8, SpinAlignedEOBversion );
+    flux = flux / eta;
+    
+    /* OUTPUT THE DERIVATIVES */
+    for( i=0; i<12; i++ )
+	{
+		fprintf(dynfout, "%.12e\t", valuesin[i]);
+		if(debugPK)printf("%e ", valuesin[i]);
+	}
+    
+    if(debugPK)printf("\nderivatives calculated:\n");
+    for( i=0; i<14; i++ )
+    {
+	  fprintf(dynfout, "%.12e\t", dvaluesout[i]);
+	  if(debugPK)printf("%e ", dvaluesout[i]);
+    }
+    	
+	fprintf(dynfout, "%.12e\t%.12e\n", H, flux);
+	if(debugPK)printf("%e\t%e\n", H, flux);
+	
+	tmpj += 1;
+  }
+  
+  fclose(dynfin);
+  fclose(dynfout);
+  
+  if(debugPK){
+	  printf("Derivatives written for the dynamics file!\n"); }  
+}
   /* ************************************************* */
   /* ***** Set up the INITIAL CONDITIONS               */
   /* ************************************************* */
@@ -1615,9 +1798,8 @@ printf("YP: m1 = %f, m2 = %f\n",m1,m2);
   status = XLALSpinHcapRvecDerivative( 0, values->data, dvalues->data, (void*) &seobParams);
   if(debugPK)printf("\nCalculated Rdot\n");
   memcpy( rdotvec, dvalues->data, 3*sizeof(REAL8) );
-  /* Calculate r cross rDot */
-  REAL8 rcrossrdotNorm, rvec[3], rcrossrdot[3], s1dotLN, s2dotLN;; 
-  
+
+  /* Calculate r cross rDot */ 
   memcpy( rvec, values->data, 3*sizeof(REAL8) );
   cross_product( rvec, rdotvec, rcrossrdot );
   rcrossrdotNorm = sqrt(inner_product( rcrossrdot, rcrossrdot ));
@@ -1627,8 +1809,6 @@ printf("YP: m1 = %f, m2 = %f\n",m1,m2);
   s1dotLN = inner_product( spin1, rcrossrdot );
   s2dotLN = inner_product( spin2, rcrossrdot );
     
-  REAL8 UNUSED rcrossp[3], rcrosspMag, s1dotL, s2dotL;
-
   rcrossp[0] = values->data[1]*values->data[5] - values->data[2]*values->data[4];
   rcrossp[1] = values->data[2]*values->data[3] - values->data[0]*values->data[5];
   rcrossp[2] = values->data[0]*values->data[4] - values->data[1]*values->data[3];
@@ -1721,10 +1901,12 @@ printf("YP: m1 = %f, m2 = %f\n",m1,m2);
 	    XLAL_ERROR( XLAL_EINVAL );
 	    break;
   }
-  nqcCoeffs.a1 = nqcCoeffs.a2 = nqcCoeffs.a3 = nqcCoeffs.a3S = nqcCoeffs.a4 = nqcCoeffs.a5 = nqcCoeffs.b1 = nqcCoeffs.b2 = nqcCoeffs.b3 = nqcCoeffs.b4 = 0;
+  nqcCoeffs.a1 = nqcCoeffs.a2 = nqcCoeffs.a3 = nqcCoeffs.a3S = nqcCoeffs.a4 = 
+  nqcCoeffs.a5 = nqcCoeffs.b1 = nqcCoeffs.b2 = nqcCoeffs.b3 = nqcCoeffs.b4 = 0;
   if(debugPK)printf("\tl = %d, m = %d, NQC: a1 = %.16e, a2 = %.16e, a3 = %.16e, a3S = %.16e, a4 = %.16e, a5 = %.16e\n\tb1 = %.16e, b2 = %.16e, b3 = %.16e, b4 = %.16e\n", 
-                           2, 2, nqcCoeffs.a1, nqcCoeffs.a2, nqcCoeffs.a3, nqcCoeffs.a3S, nqcCoeffs.a4, nqcCoeffs.a5, 
-                           nqcCoeffs.b1, nqcCoeffs.b2, nqcCoeffs.b3, nqcCoeffs.b4 );
+                       2, 2, nqcCoeffs.a1, nqcCoeffs.a2, nqcCoeffs.a3, 
+                       nqcCoeffs.a3S, nqcCoeffs.a4, nqcCoeffs.a5, 
+                       nqcCoeffs.b1, nqcCoeffs.b2, nqcCoeffs.b3, nqcCoeffs.b4 );
  
 
   if ( debugPK )

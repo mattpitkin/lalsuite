@@ -433,8 +433,8 @@ static int XLALSpinHcapNumericalDerivative(
     }
   }
 
-  REAL8 sscaling1 = (mass1+mass2)*(mass1+mass2)/(mass1*mass1);
-  REAL8 sscaling2 = (mass1+mass2)*(mass1+mass2)/(mass2*mass2);
+  REAL8 sscaling1 = 1;//(mass1+mass2)*(mass1+mass2)/(mass1*mass1);
+  REAL8 sscaling2 = 1;//(mass1+mass2)*(mass1+mass2)/(mass2*mass2);
 
   if(debugPK){
   printf("Computing derivatives for values\n%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\n\n",
@@ -820,6 +820,7 @@ static REAL8 XLALSpinHcapNumDerivWRTParam(
  */
 static double GSLSpinHamiltonianWrapper( double x, void *params )
 {
+  int debugPK = 0;
   HcapDerivParams *dParams = (HcapDerivParams *)params;
 
   EOBParams *eobParams = (EOBParams*) dParams->params->eobParams;
@@ -883,7 +884,7 @@ static double GSLSpinHamiltonianWrapper( double x, void *params )
             + sigmaKerr.data[2]*sigmaKerr.data[2] );
   //printf( "a = %e\n", a );
   //printf( "aStar = %e\n", sqrt( sigmaStar.data[0]*sigmaStar.data[0] + sigmaStar.data[1]*sigmaStar.data[1] + sigmaStar.data[2]*sigmaStar.data[2]) );
-  if ( isnan( a ) )
+  if ( isnan( a ) && debugPK )
   {
     printf( "a is nan!!\n");
   }
