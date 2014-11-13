@@ -1305,18 +1305,18 @@ int XLALSimIMRSpinEOBWaveform(
   values->data[10] = 0.;
   values->data[11] = 0.;*/
   
-  values->data[0] = 25;
-  values->data[1] = -2.738042987012824e-23;
-  values->data[2] = -2.895313259628355e-19;
-  values->data[3] = -0.0001185485542182621;
-  values->data[4] = 0.2118058597394067;
-  values->data[5] = -4.006015947416696e-05;
-  values->data[6] = -0.4122563355465681 * (mTotal/m1) * (mTotal/m1);
-  values->data[7] = -0.3304754197472309 * (mTotal/m1) * (mTotal/m1);
-  values->data[8] = 0.1716761079860819 * (mTotal/m1) * (mTotal/m1);
-  values->data[9] = 0.01348361657291579 * (mTotal/m2) * (mTotal/m2);
-  values->data[10] = 2.117582368135751e-22 * (mTotal/m2) * (mTotal/m2);
-  values->data[11] = 0.009796420871541223 * (mTotal/m2) * (mTotal/m2);
+  values->data[0] = 2.5000000000000000e+01;
+  values->data[1] = -2.7380429870100001e-23;
+  values->data[2] = -2.8953132596299999e-19;
+  values->data[3] = -1.1854855421800000e-04;
+  values->data[4] = 2.1180585973900001e-01;
+  values->data[5] = -4.0060159474199999e-05;
+  values->data[6] = -4.1225633554699997e-01 * (mTotal/m1) * (mTotal/m1);
+  values->data[7] = -3.3047541974700001e-01 * (mTotal/m1) * (mTotal/m1);
+  values->data[8] = 1.7167610798600000e-01 * (mTotal/m1) * (mTotal/m1);
+  values->data[9] = 1.3483616572900000e-02 * (mTotal/m2) * (mTotal/m2);
+  values->data[10] = 2.1175823681400000e-22 * (mTotal/m2) * (mTotal/m2);
+  values->data[11] = 9.7964208715400000e-03 * (mTotal/m2) * (mTotal/m2);
 
   /* These ones did not work with the cpp code -- underflow error
   values->data[0] = 29.9;
