@@ -68,7 +68,6 @@
 #include "LALSimIMRSpinEOBFactorizedWaveform.c"
 #include "LALSimIMRSpinEOBFactorizedFlux.c"
 
-int debugPK = 0;
 
 #ifdef __GNUC__
 #define UNUSED __attribute__ ((unused))
@@ -97,7 +96,7 @@ XLALEOBSpinStopCondition(double UNUSED t,
 
   /* Terminate when omega reaches peak, and separation is < 6M */
   //if ( omega < params->eobParams->omega )
-  if ( r2 < 36. && omega < params->eobParams->omega )
+  if ( r2 < 16. && omega < params->eobParams->omega )
   {
     return 1;
   }
@@ -1117,6 +1116,7 @@ int XLALSimIMRSpinEOBWaveform(
      )
 {
   int importDynamicsAndGetDerivatives = 0;
+  int debugPK = 0;
 
   INT4 i, k;
   UINT4 j;
@@ -1487,9 +1487,7 @@ int XLALSimIMRSpinEOBWaveform(
   }
 
   /* Calculate the value of a */
-  seobParams.a = a = sqrt( sigmaKerr->data[0]*sigmaKerr->data[0] 
-		+ sigmaKerr->data[1]*sigmaKerr->data[1] 
-		+ sigmaKerr->data[2]*sigmaKerr->data[2] );
+  seobParams.a = a = sqrt( inner_product(sigmaKerr->data,sigmaKerr->data) );
 
   seobParams.s1Vec = &s1VecOverMtMt;
   seobParams.s2Vec = &s2VecOverMtMt;
@@ -1523,7 +1521,7 @@ int XLALSimIMRSpinEOBWaveform(
   /* Pre-compute the Hamiltonian coefficients */
   if( debugPK )
   {
-    printf("Populating the Hamiltonian Coefficients\n");
+    printf("Populating the Hamiltonian Coefficients. a = %.12e\n",a);
     fflush(NULL);
   }
   if ( XLALSimIMRCalculateSpinEOBHCoeffs( &seobCoeffs, eta, a, 
@@ -1559,7 +1557,8 @@ if(importDynamicsAndGetDerivatives)
   if(debugPK)printf("\tl = %d, m = %d, NQC: a1 = %.16e, a2 = %.16e, a3 = %.16e, a3S = %.16e, a4 = %.16e, a5 = %.16e\n\tb1 = %.16e, b2 = %.16e, b3 = %.16e, b4 = %.16e\n", 
                            2, 2, nqcCoeffs.a1, nqcCoeffs.a2, nqcCoeffs.a3, nqcCoeffs.a3S, nqcCoeffs.a4, nqcCoeffs.a5, 
                            nqcCoeffs.b1, nqcCoeffs.b2, nqcCoeffs.b3, nqcCoeffs.b4 );
-  FILE* dynfin = fopen( "Data_q_5_chi1_0.247214_chi2_0.352671_dSO_-69.5_dSS_2.75P.dat", "r" );
+  //FILE* dynfin = fopen( "Data_q_5_chi1_0.247214_chi2_0.352671_dSO_-69.5_dSS_2.75P.dat", "r" );
+  FILE* dynfin = fopen( "seobDynamics.dat", "r" );
   FILE* dynfout= fopen( "DynamicsDerivatives.dat", "w");
   
   double tin, xin, yin, zin, pxin, pyin, pzin, s1xin, s1yin, s1zin, s2xin, s2yin, s2zin;
@@ -1575,13 +1574,13 @@ if(importDynamicsAndGetDerivatives)
   int tmpj = 0;
   if(debugPK){
 	  printf("Reading dynamics file to compute derivatives\n"); }
-  while(fscanf(dynfin, "%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le", 
+  while(fscanf(dynfin, "%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le", 
 					&tin, &xin, &yin, &zin, &pxin, &pyin, &pzin, 
 					&s1xin, &s1yin, &s1zin, &s2xin, &s2yin, &s2zin 
-					//,&tmp1, &tmp2
-					 ) == 13)
+					,&tmp1, &tmp2
+					 ) == 15)
   {
-	printf("%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\n", 
+	if(debugPK)printf("%.16le\t%.16le\t%.16le\t%.16le\t%.16le\t%.16le\t%.16le\t%.16le\t%.16le\t%.16le\t%.16le\t%.16le\t%.16le\n", 
 					tin, xin, yin, zin, pxin, pyin, pzin, 
 					s1xin, s1yin, s1zin, s2xin, s2yin, s2zin );
 					
@@ -1609,7 +1608,7 @@ if(importDynamicsAndGetDerivatives)
     for( i=0; i<3; i++ )
     {
 	  s1DataNorm[i] = valuesin[i+6];
-	  s1DataNorm[i] = valuesin[i+9];
+	  s2DataNorm[i] = valuesin[i+9];
 	  s1Data[i] = s1DataNorm[i] * mTotal * mTotal;
 	  s2Data[i] = s2DataNorm[i] * mTotal * mTotal;
     }
@@ -1637,7 +1636,28 @@ if(importDynamicsAndGetDerivatives)
     seobParams.a = a = sqrt( sigmaKerr->data[0]*sigmaKerr->data[0] 
 		+ sigmaKerr->data[1]*sigmaKerr->data[1] 
 		+ sigmaKerr->data[2]*sigmaKerr->data[2] );
-    printf("\nValue of a calculated = %le\n", a);
+    
+	if ( debugPK )
+    {
+	  printf("\nValue of a calculated = %.16le\n", a);
+	  
+	  /* Print out all spin parameters */
+	  printf("sigmaStar = {%.12e,%.12e,%.12e}\n, sigmaKerr = {%.12e,%.12e,%.12e}\n",
+			(double) sigmaStar->data[0], (double) sigmaStar->data[1], 
+			(double) sigmaStar->data[2], (double) sigmaKerr->data[0],
+			(double) sigmaKerr->data[1], (double) sigmaKerr->data[2]);
+	  printf("a = %.12e, tplspin = %.12e, chiS = %.12e, chiA = %.12e\n", 
+			(double) a, (double) tplspin, (double) chiS, (double) chiA);
+	  printf("a is used to compute Hamiltonian coefficients,\n tplspin and chiS and chiA for the multipole coefficients\n");
+
+	  printf("s1Vec = {%.12e,%.12e,%.12e}\n", (double) s1VecOverMtMt.data[0], 
+	  (double) s1VecOverMtMt.data[1], (double) s1VecOverMtMt.data[2]);
+	  printf("s2Vec = {%.12e,%.12e,%.12e}\n", (double) s2VecOverMtMt.data[0],
+	  (double) s2VecOverMtMt.data[1], (double) s2VecOverMtMt.data[2]);
+
+      fflush(NULL);
+    } 
+
 
     memset( dvaluesout, 0, 14*sizeof(REAL8) );
     status = XLALSpinHcapRvecDerivative( 0, valuesin, dvaluesout, (void*) &seobParams);
@@ -1668,18 +1688,21 @@ if(importDynamicsAndGetDerivatives)
        XLAL_ERROR( XLAL_EINVAL );
        break;
     }
+    if(debugPK)printf("\nCalculating Hamiltonian coefficients\n");
     /* Populate the different structures */
     if ( XLALSimIMRCalculateSpinEOBHCoeffs( &seobCoeffs, eta, a, 
                           SpinAlignedEOBversion ) == XLAL_FAILURE )
       printf("\nSomething went wrong evaluating XLALSimIMRCalculateSpinEOBHCoeffs in line %d of the input file\n", 
 			tmpj );
 
+    if(debugPK)printf("\nCalculating Waveform coefficients\n");
     if ( XLALSimIMREOBCalcSpinFacWaveformCoefficients( &hCoeffs, m1, m2, eta, 
         tplspin, chiS, chiA, SpinAlignedEOBversion ) == XLAL_FAILURE )
       printf("\nSomething went wrong evaluating XLALSimIMRCalculateSpinEOBHCoeffs in line %d of the input file\n", 
 			tmpj );
 
     /* CALCULATE THE DERIVATIVES */
+    if(debugPK)printf("\nCalculating Derivatives\n");
     memset( dvaluesout, 0, 14*sizeof(REAL8) );
     if( XLALSpinHcapNumericalDerivative( (REAL8) tin, valuesin, dvaluesout, 
 								(void*) &seobParams ) != XLAL_SUCCESS )
@@ -1687,6 +1710,7 @@ if(importDynamicsAndGetDerivatives)
 			tmpj );
     
     /* CALCULATE THE HAMILTONIAN AND FLUX */
+    if(debugPK)printf("\nCalculating Hamiltonian\n");
     H = XLALSimIMRSpinEOBHamiltonian( eta, &cartPosVec, &cartMomVec, 
 			&s1VecOverMtMt, &s2VecOverMtMt, sigmaKerr, sigmaStar, 
 			seobParams.tortoise, seobParams.seobCoeffs ); 
@@ -1700,25 +1724,28 @@ if(importDynamicsAndGetDerivatives)
     polData[3] = sqrt(inner_product(rcrossp, rcrossp));
     omega = rcrossrdotNorm / (polData[0] * polData[0]);
     
+    if(debugPK)printf("\nCalculating Flux\n");
     flux  = XLALInspiralPrecSpinFactorizedFlux( &polarDynamics, &cartDynamics, 
               &nqcCoeffs, omega, &seobParams, H/mTotal, 8, SpinAlignedEOBversion );
     flux = flux / eta;
     
     /* OUTPUT THE DERIVATIVES */
+    if(debugPK)printf("\n\nDynamics imported\n");
+    fprintf(dynfout, "%.16e\t", tin);
     for( i=0; i<12; i++ )
 	{
-		fprintf(dynfout, "%.12e\t", valuesin[i]);
+		fprintf(dynfout, "%.16e\t", valuesin[i]);
 		if(debugPK)printf("%e ", valuesin[i]);
 	}
     
-    if(debugPK)printf("\nderivatives calculated:\n");
+    if(debugPK)printf("\n\nDerivatives calculated:\n");
     for( i=0; i<14; i++ )
     {
-	  fprintf(dynfout, "%.12e\t", dvaluesout[i]);
+	  fprintf(dynfout, "%.16e\t", dvaluesout[i]);
 	  if(debugPK)printf("%e ", dvaluesout[i]);
     }
     	
-	fprintf(dynfout, "%.12e\t%.12e\n", H, flux);
+	fprintf(dynfout, "%.16e\t%.16e\n", H, flux);
 	if(debugPK)printf("%e\t%e\n", H, flux);
 	
 	tmpj += 1;
@@ -1794,7 +1821,6 @@ if(importDynamicsAndGetDerivatives)
   if(debugPK)printf("\nReached the point where LN is to be calculated\n");
   /* Calculate rDot = \f$\partial Hreal / \partial p_r\f$ */
   memset( dvalues->data, 0, 14 * sizeof(REAL8) );
-  if(debugPK)printf("\n Going to calculate Rdot\n");
   status = XLALSpinHcapRvecDerivative( 0, values->data, dvalues->data, (void*) &seobParams);
   if(debugPK)printf("\nCalculated Rdot\n");
   memcpy( rdotvec, dvalues->data, 3*sizeof(REAL8) );
@@ -1869,7 +1895,8 @@ if(importDynamicsAndGetDerivatives)
   /* Pre-compute the non-spinning and spinning coefficients for hLM factors */
   if( debugPK )
   {
-    printf("Calling the XLALSimIMREOBCalcSpinFacWaveformCoefficients function to calculate Waveform Multipole Coefficients!\n");
+    printf("Calling XLALSimIMREOBCalcSpinFacWaveformCoefficients for hlm Coefficients!\n");
+    printf("tplspin = %.12e, chiS = %.12e, chiA = %.12e\n", tplspin, chiS, chiA);
     fflush(NULL);
   }
   if ( XLALSimIMREOBCalcSpinFacWaveformCoefficients( &hCoeffs, m1, m2, eta, 
@@ -1924,7 +1951,7 @@ if(importDynamicsAndGetDerivatives)
 			(double) mSpin1[0], (double) mSpin1[1], (double) mSpin1[2],
 			(double) mSpin2[0], (double) mSpin2[1], (double) mSpin2[2]);
 	
-	  printf("sigmaStar = {%.12e,%.12e,%.12e}, sigmaKerr = {%.12e,%.12e,%.12e}\n",
+	  printf("sigmaStar = {%.12e,%.12e,%.12e},\n sigmaKerr = {%.12e,%.12e,%.12e}\n",
 			(double) sigmaStar->data[0], (double) sigmaStar->data[1], 
 			(double) sigmaStar->data[2], (double) sigmaKerr->data[0],
 			(double) sigmaKerr->data[1], (double) sigmaKerr->data[2]);
@@ -1941,124 +1968,6 @@ if(importDynamicsAndGetDerivatives)
   } 
   
   FILE *out = NULL;
-#if 0
-  FILE *in  = fopen("/home/prayush/research/SEOBNRv2-3/case1q5/TestEpsAndrea.dat","r");//DynDataMathematica.dat", "r" );
-  out = fopen( "/home/prayush/research/SEOBNRv2-3/case1q5/TestEpsAndreaOut.dat","w");//TestDerivatives.dat", "w" );
-  double testValues[14], UNUSED testTime, UNUSED testDValues[14], UNUSED testH = 0., UNUSED testF = 0.;
-  while (!feof(in))
-  {
-	  if (fscanf(in, "%lf  %lf  %lf  %lf  %lf  %lf  %lf  %lf  %lf  %lf  %lf  %lf  %lf", &testTime,
-	  &testValues[0], &testValues[1], &testValues[2], &testValues[3], 
-	  &testValues[4], &testValues[5], &testValues[6], &testValues[7], 
-	  &testValues[8], &testValues[9], &testValues[10], &testValues[11] ) != 13)
-		break;
-
-	 /*for( i = 0; i < 3; i++ )
-	 {
-		 testValues[i+6] *= m1*m1/(mTotal*mTotal);
-		 testValues[i+6+3] *= m2*m2/(mTotal*mTotal); 
-	 }*/
-		
-	 /*Compute stuff*/
-	 //XLALSpinHcapNumericalDerivative( testTime, (REAL8*) testValues, 
-		//		(REAL8*) testDValues, (void*) &seobParams );
-   /* Wrapper spin vectors used to calculate sigmas */
-  s1VecOverMtMt.length = s2VecOverMtMt.length = 3;
-  s1VecOverMtMt.data   = s1DataNorm;
-  s2VecOverMtMt.data   = s2DataNorm;
-
-  s1Vec.length = s2Vec.length = 3;
-  s1Vec.data   = s1Data;
-  s2Vec.data   = s2Data;
-    
-     /* Set up parameters to obtain the Hamiltonian */
-     for ( unsigned int j = 0; j < values->length; j++ )
-     {
-		 values->data[j] = testValues[j];
-	  }
-
-	REAL8 rData[3], pData[3];
-	cartPosVec.data = rData;
-	cartMomVec.data = pData;
-	memcpy( rData, values->data, sizeof(rData) );
-    memcpy( pData, values->data+3, sizeof(pData) );
-
-	
-  for( unsigned int j = 0; j < 3; j++ )
-  {
-    /* Store the dimensionless chi vector, i.e. \vec{S}_i/m_i^2 */
-    spin1[j] = values->data[j+6];// * (mTotal*mTotal)/(m1*m1);
-    spin2[j] = values->data[j+9];// * (mTotal*mTotal)/(m2*m2);
-    
-    values->data[j+6] *= m1*m1/(mTotal*mTotal);
-    values->data[j+9] *= m2*m2/(mTotal*mTotal);
-  }
-
-  memcpy( s1Data, spin1, sizeof(s1Data) );
-  memcpy( s2Data, spin2, sizeof(s2Data) );
-  memcpy( s1DataNorm, spin1, sizeof( s1DataNorm ) );
-  memcpy( s2DataNorm, spin2, sizeof( s2DataNorm ) );
-
-  for( unsigned int j = 0; j < 3; j++ )
-  {
-    s1Data[j] *= m1*m1;
-    s2Data[j] *= m2*m2;
-  }
-
-  for ( unsigned int j = 0; j < 3; j++ )
-  {
-    s1DataNorm[j] = s1Data[j]/mTotal/mTotal;
-    s2DataNorm[j] = s2Data[j]/mTotal/mTotal;
-  }
- 
-XLALSimIMRSpinEOBCalculateSigmaKerr( sigmaKerr, m1, m2, 
-                              &s1Vec, &s2Vec );
-
-XLALSimIMRSpinEOBCalculateSigmaStar( sigmaStar, m1, m2, 
-                              &s1Vec, &s2Vec );
-
-	 printf("\n%.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e \n", 
-	  testTime,
-	  testValues[0], testValues[1], testValues[2], testValues[3], 
-	  testValues[4], testValues[5], testValues[6], testValues[7], 
-	  testValues[8], testValues[9], testValues[10], testValues[11]);
-
-  printf("\n%.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %.8e %d\n", 
-		eta, 
-		cartPosVec.data[0], cartPosVec.data[1], cartPosVec.data[2],
-		cartMomVec.data[0], cartMomVec.data[1], cartMomVec.data[2],
-		s1VecOverMtMt.data[0], s1VecOverMtMt.data[1], s1VecOverMtMt.data[2],
-		s2VecOverMtMt.data[0], s2VecOverMtMt.data[1], s2VecOverMtMt.data[2],
-		sigmaKerr->data[0], sigmaKerr->data[1], sigmaKerr->data[2],
-		sigmaStar->data[0], sigmaStar->data[1], sigmaStar->data[2],
-		seobParams.tortoise);
-fflush(NULL);
-seobParams.tortoise = 2;
-ham = XLALSimIMRSpinEOBHamiltonian( eta, &cartPosVec, &cartMomVec,
-         &s1VecOverMtMt, &s2VecOverMtMt,
-         sigmaKerr, sigmaStar, seobParams.tortoise, &seobCoeffs );
-  seobParams.tortoise = 1;
-	 /*testF  = XLALInspiralSpinFactorizedFlux( &polarDynamics, omega, &seobParams, H/(mass1+mass2), lMax, SpinAlignedEOBversion );
-	 testF /= eta;*/
-	  
-	 /*Write it*/
-	 /*fprintf(out, "%.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e\n", 
-	  testTime,
-	  testValues[0], testValues[1], testValues[2], testValues[3], 
-	  testValues[4], testValues[5], testValues[6], testValues[7], 
-	  testValues[8], testValues[9], testValues[10], testValues[11],
-	  testDValues[0], testDValues[1], testDValues[2], testDValues[3], 
-	  testDValues[4], testDValues[5], testDValues[6], testDValues[7], 
-	  testDValues[8], testDValues[9], testDValues[10], testDValues[11]
-	   );*/
-	  fprintf(out, "%.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e  %.16e %.16e \n", 
-				testValues[0], testValues[1], testValues[2], testValues[3], 
-	  testValues[4], testValues[5], testValues[6], testValues[7], 
-	  testValues[8], testValues[9], testValues[10], testValues[11], ham);
- }
- fclose( out );
- fclose( in );
-#endif
 
   /* Initialize the GSL integrator */
   if (!(integrator = XLALAdaptiveRungeKutta4Init(14, XLALSpinHcapNumericalDerivative,

@@ -82,14 +82,6 @@ static REAL8 XLALSpinHcapNumDerivWRTParam(
  *
  *------------------------------------------------------------------------------------------
  */
-#if 0 
-/* Calculate the kronecker delta */
-static REAL8 XLALKronecker( const INT4 i, const INT4 j )
-{
-	REAL8 d = ((i == j) ? 1. : 0.);
-	return d;
-}
-#endif
 
 /**
  * Function to calculate numerical derivatives of the spin EOB Hamiltonian,
@@ -143,7 +135,7 @@ static int XLALSpinHcapNumericalDerivative(
   REAL8       sKerrData[3], sStarData[3];
   REAL8 /*magS1, magS2,*/ chiS, chiA, a, tplspin;
   REAL8	UNUSED s1dotL, s2dotL;
-  REAL8	UNUSED	  rcrossrDot[3], rcrossrDotMag, s1dotLN, s2dotLN;
+  REAL8	UNUSED rcrossrDot[3], rcrossrDotMag, s1dotLN, s2dotLN;
 
 
   /* Orbital angular momentum */
@@ -291,12 +283,12 @@ static int XLALSpinHcapNumericalDerivative(
       + sKerr.data[2]*sKerr.data[2]);
  
 	  ///* set the tortoise flag to 2 */
-	  //INT4 oldTortoise = params.params->tortoise;
-	  //params.params->tortoise = 2;
-	  
-	  /* Convert momenta to p */
-	  rMag = sqrt(rData[0]*rData[0] + rData[1]*rData[1] + rData[2]*rData[2]);
-	  prT = pData[0]*(rData[0]/rMag) + pData[1]*(rData[1]/rMag) 
+  // INT4 oldTortoise = params.params->tortoise;
+  //params.params->tortoise = 2;
+    
+  /* Convert momenta to p */
+  rMag = sqrt(rData[0]*rData[0] + rData[1]*rData[1] + rData[2]*rData[2]);
+  prT = pData[0]*(rData[0]/rMag) + pData[1]*(rData[1]/rMag) 
 					+ pData[2]*(rData[2]/rMag);
 	
 	  rMag2 = rMag * rMag;
@@ -342,8 +334,9 @@ static int XLALSpinHcapNumericalDerivative(
 	  }
 	  
   if( debugPK ){
+	  printf("csi = %.12e\n", csi);
 	  for( i = 0; i < 3; i++ )
-		printf("%.12e\t%.12e\n", pData[i], tmpP[i]); }
+		printf("p,p*: %.12e\t%.12e\n", pData[i], tmpP[i]); }
 		
   /* Calculate the T-matrix, required to convert P from tortoise to 
    * non-tortoise coordinates, and/or vice-versa. This is given explicitly
@@ -433,22 +426,19 @@ static int XLALSpinHcapNumericalDerivative(
     }
   }
 
-  REAL8 sscaling1 = 1;//(mass1+mass2)*(mass1+mass2)/(mass1*mass1);
-  REAL8 sscaling2 = 1;//(mass1+mass2)*(mass1+mass2)/(mass2*mass2);
+  /* Now make the conversion */
+  /* rVectorDot */
+  for( i = 0; i < 3; i++ )
+	  for( j = 0, dvalues[i] = 0.; j < 3; j++ )
+		  dvalues[i] += tmpDValues[j+3]*Tmatrix[i][j];
 
-  if(debugPK){
-  printf("Computing derivatives for values\n%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\n\n",
-        (double) values[0], (double) values[1], (double) values[2], 
-        (double) values[3], (double) values[4], (double) values[5], 
-        (double) sscaling1*values[6], (double) sscaling1*values[7], 
-        (double) sscaling1*values[8], (double) sscaling2*values[9],
-        (double) sscaling2*values[10], (double) sscaling2*values[11] );
-  printf("tmpDvalues\n%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t\n",
-        (double) tmpDValues[0], (double) tmpDValues[1], (double) tmpDValues[2], 
-        (double) tmpDValues[3], (double) tmpDValues[4], (double) tmpDValues[5], 
-        (double) tmpDValues[6], (double) tmpDValues[7], (double) tmpDValues[8], 
-        (double) tmpDValues[9], (double) tmpDValues[10], (double) tmpDValues[11]);
-  }
+  //dvalues[0]  = tmpDValues[3]*Tmatrix[0][0] + tmpDValues[4]*Tmatrix[0][1]
+				//+ tmpDValues[5]*Tmatrix[0][2];
+  //dvalues[1]  = tmpDValues[3]*Tmatrix[1][0] + tmpDValues[4]*Tmatrix[1][1]
+				//+ tmpDValues[5]*Tmatrix[1][2];
+  //dvalues[2]  = tmpDValues[3]*Tmatrix[2][0] + tmpDValues[4]*Tmatrix[2][1]
+				//+ tmpDValues[5]*Tmatrix[2][2];
+
   /* Calculate the orbital angular momentum */
   Lx = values[1]*values[5] - values[2]*values[4];
   Ly = values[2]*values[3] - values[0]*values[5];
@@ -478,9 +468,17 @@ static int XLALSpinHcapNumericalDerivative(
   s2dotL = (s2Data[0]*Lhatx + s2Data[1]*Lhaty + s2Data[2]*Lhatz)
 			/ (mass2*mass2);
 
+  /* Now calculate rCrossRdot and omega */
+  rCrossV_x = values[1]*dvalues[2] - values[2]*dvalues[1];
+  rCrossV_y = values[2]*dvalues[0] - values[0]*dvalues[2];
+  rCrossV_z = values[0]*dvalues[1] - values[1]*dvalues[0];
+
+  omega = sqrt( rCrossV_x*rCrossV_x + rCrossV_y*rCrossV_y + rCrossV_z*rCrossV_z ) / (r*r);
+
   /*Compute \vec{L_N} = \vec{r} \times \.{\vec{r}}, 
    * \vec{S_i} \dot \vec{L_N} and chiS and chiA		*/
-  rcrossrDot[0] = values[1]*tmpDValues[5] - values[2]*tmpDValues[4];
+  /* THIS IS NOT QUITE RIGHT. ITS rcrossr*Dot INSTEAD, as it is \partial H/\partial p_**/
+  /*rcrossrDot[0] = values[1]*tmpDValues[5] - values[2]*tmpDValues[4];
   rcrossrDot[1] = values[2]*tmpDValues[3] - values[0]*tmpDValues[5];
   rcrossrDot[2] = values[0]*tmpDValues[4] - values[1]*tmpDValues[3];
   rcrossrDotMag = sqrt( rcrossrDot[0]*rcrossrDot[0] 
@@ -488,18 +486,35 @@ static int XLALSpinHcapNumericalDerivative(
 
   rcrossrDot[0] /= rcrossrDotMag;
   rcrossrDot[1] /= rcrossrDotMag;
-  rcrossrDot[2] /= rcrossrDotMag;
+  rcrossrDot[2] /= rcrossrDotMag;*/
   
-  s1dotLN = (s1Data[0]*rcrossrDot[0] + s1Data[1]*rcrossrDot[1] 
-		        + s1Data[2]*rcrossrDot[2]) / (mass1*mass1);
-  s2dotLN = (s2Data[0]*rcrossrDot[0] + s2Data[1]*rcrossrDot[1] 
-                	+ s2Data[2]*rcrossrDot[2]) / (mass2*mass2);
+  s1dotLN = (s1Data[0]*rCrossV_x + s1Data[1]*rCrossV_y + s1Data[2]*rCrossV_z) /
+				(r*r*omega * mass1*mass1);
+  s2dotLN = (s2Data[0]*rCrossV_x + s2Data[1]*rCrossV_y + s2Data[2]*rCrossV_z) /
+                (r*r*omega * mass2*mass2);
  
   chiS = 0.5 * (s1dotLN + s2dotLN);
   chiA = 0.5 * (s1dotLN - s2dotLN);
 
   if(debugPK){
 	printf("chiS = %.12e, chiA = %.12e\n", chiS, chiA); fflush(NULL);
+  }
+
+  REAL8 sscaling1 = 1;//(mass1+mass2)*(mass1+mass2)/(mass1*mass1);
+  REAL8 sscaling2 = 1;//(mass1+mass2)*(mass1+mass2)/(mass2*mass2);
+
+  if(debugPK){
+  printf("Computing derivatives for values\n%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\n\n",
+        (double) values[0], (double) values[1], (double) values[2], 
+        (double) values[3], (double) values[4], (double) values[5], 
+        (double) sscaling1*values[6], (double) sscaling1*values[7], 
+        (double) sscaling1*values[8], (double) sscaling2*values[9],
+        (double) sscaling2*values[10], (double) sscaling2*values[11] );
+  printf("tmpDvalues\n%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t\n",
+        (double) tmpDValues[0], (double) tmpDValues[1], (double) tmpDValues[2], 
+        (double) tmpDValues[3], (double) tmpDValues[4], (double) tmpDValues[5], 
+        (double) tmpDValues[6], (double) tmpDValues[7], (double) tmpDValues[8], 
+        (double) tmpDValues[9], (double) tmpDValues[10], (double) tmpDValues[11]);
   }
 
   /* Compute the test-particle limit spin of the deformed-Kerr background */
@@ -534,35 +549,15 @@ static int XLALSpinHcapNumericalDerivative(
 	&sKerr, &sStar, params.params->tortoise, params.params->seobCoeffs ); 
   H = H * (mass1 + mass2);
   
-  /* Now make the conversion */
-  /* rVectorDot */
-  for( i = 0; i < 3; i++ )
-	  for( j = 0, dvalues[i] = 0.; j < 3; j++ )
-		  dvalues[i] += tmpDValues[j+3]*Tmatrix[i][j];
-
-  //dvalues[0]  = tmpDValues[3]*Tmatrix[0][0] + tmpDValues[4]*Tmatrix[0][1]
-				//+ tmpDValues[5]*Tmatrix[0][2];
-  //dvalues[1]  = tmpDValues[3]*Tmatrix[1][0] + tmpDValues[4]*Tmatrix[1][1]
-				//+ tmpDValues[5]*Tmatrix[1][2];
-  //dvalues[2]  = tmpDValues[3]*Tmatrix[2][0] + tmpDValues[4]*Tmatrix[2][1]
-				//+ tmpDValues[5]*Tmatrix[2][2];
-
-  /* Now calculate omega, and hence the flux */
-  rCrossV_x = values[1]*dvalues[2] - values[2]*dvalues[1];
-  rCrossV_y = values[2]*dvalues[0] - values[0]*dvalues[2];
-  rCrossV_z = values[0]*dvalues[1] - values[1]*dvalues[0];
-
-  omega = sqrt( rCrossV_x*rCrossV_x + rCrossV_y*rCrossV_y + rCrossV_z*rCrossV_z ) / (r*r);
-  
+  /* Now we have the ingredients to compute the flux */
   memcpy( tmpValues, values, 12*sizeof(REAL8) );
   cartDynamics.data = tmpValues;
   if(debugPK){
-  printf("params.params->a = %.12e, %.12e\n", (1.-2.*eta) * chiS + (mass1 - mass2)/(mass1 + mass2) * chiA, params.params->a); fflush(NULL);}
-  flux  = XLALInspiralPrecSpinFactorizedFlux( &polarDynamics, &cartDynamics, nqcCoeffs, omega, params.params,
-      H/(mass1+mass2), lMax, SpinAlignedEOBversion );
+  printf("params.params->a = %.12e, %.12e\n", a, params.params->a); fflush(NULL);}
+  flux  = XLALInspiralPrecSpinFactorizedFlux( &polarDynamics, &cartDynamics, 
+			nqcCoeffs, omega, params.params, H/(mass1+mass2), lMax, SpinAlignedEOBversion );
 
   /* Looking at the non-spinning model, I think we need to divide the flux by eta */
-  // FIXME
   flux = flux / eta;
 
   pDotS1 = pData[0]*s1Data[0] + pData[1]*s1Data[1] + pData[2]*s1Data[2];
@@ -732,7 +727,7 @@ static int XLALSpinHcapNumericalDerivative(
 	printf("Hamiltonian = %12.12lf, Flux = %12.12lf, Omega = %12.12lf\n", H, flux, omega);
 #endif
 #if 1
-	printf("%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\n\n",
+	if(debugPK)printf("%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\n\n",
         (double) values[0], (double) values[1], (double) values[2], 
         (double) values[3], (double) values[4], (double) values[5], 
         (double) sscaling1*values[6], (double) sscaling1*values[7], 
