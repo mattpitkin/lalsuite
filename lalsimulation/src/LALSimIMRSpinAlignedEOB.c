@@ -75,7 +75,7 @@
 #define UNUSED
 #endif
 
-static int
+UNUSED static int
 XLALEOBSpinStopCondition(double UNUSED t,
                            const double values[],
                            double dvalues[],
@@ -108,28 +108,61 @@ XLALEOBSpinStopCondition(double UNUSED t,
 UNUSED static int
 XLALEOBSpinStopConditionBasedOnPR(double UNUSED t,
                            const double values[],
-                           double dvalues[],
-                           void *funcParams
+                           double UNUSED dvalues[],
+                           void UNUSED *funcParams
                           )
 {
+  INT4 i;
   SpinEOBParams UNUSED *params = (SpinEOBParams *)funcParams;
   
   REAL8 r2, pDotr = 0;
   REAL8 p[3], r[3];
+  REAL8 omega_x, omega_y, omega_z, omega;
+
+  omega_x = values[1]*dvalues[2] - values[2]*dvalues[1];
+  omega_y = values[2]*dvalues[0] - values[0]*dvalues[2];
+  omega_z = values[0]*dvalues[1] - values[1]*dvalues[0];
 
   memcpy( r, values, 3*sizeof(REAL8));
   memcpy( p, values+3, 3*sizeof(REAL8));
-  
+
   r2 = inner_product(r,r);
+  omega = sqrt( omega_x*omega_x + omega_y*omega_y + omega_z*omega_z )/r2;
   pDotr = inner_product( p, r ) / sqrt(r2);
   
   /* Terminate when omega reaches peak, and separation is < 6M */
   //if ( omega < params->eobParams->omega )
-  if ( ( r2 < 36 && pDotr >= 0 ) || isnan( dvalues[3] ) || isnan (dvalues[2]) || isnan (dvalues[1]) || isnan (dvalues[0]) )
+  for( i = 0; i < 12; i++ )
+  {
+	  if( isnan(dvalues[i]) )
+	  {
+		  printf("\n isnan reached. r2 = %f\n", r2);
+		  return 1;
+	  }
+  }
+  
+  if ( r2 < 16 && pDotr >= 0  )
+  {
+    return 1;
+  }
+  
+  if ( r2 < 16. && omega < params->eobParams->omega )
+  {
+    params->eobParams->omegaPeaked = 1;
+  }
+
+  /* If omega has gone through a second extremum, break */
+  if ( r2 < 16. && params->eobParams->omegaPeaked == 1 && omega > params->eobParams->omega )
   {
     return 1;
   }
 
+  params->eobParams->omega = omega;
+
+  if( r2>16 )params->eobParams->omegaPeaked = 0;
+  
+  printf("\n Integration continuing, r = %f\n", sqrt(r2));
+  
   return GSL_SUCCESS;
 }
 
@@ -1175,7 +1208,9 @@ int XLALSimIMRSpinEOBWaveform(
   REAL8 UNUSED sSub = 0.0;
 
   /* Dynamics of the system */
-  REAL8Vector UNUSED rVec, phiVec, prVec, pPhiVec;
+  REAL8Vector tVec, phiDMod, phiMod;
+  REAL8Vector posVecx, posVecy, posVecz, momVecx, momVecy, momVecz;
+  REAL8Vector s1Vecx, s1Vecy, s1Vecz, s2Vecx, s2Vecy, s2Vecz;
   REAL8       omega, v, ham;
 
   /* Cartesian vectors needed to calculate Hamiltonian */
@@ -1191,7 +1226,7 @@ int XLALSimIMRSpinEOBWaveform(
   /* Non-quasicircular correction */
   EOBNonQCCoeffs nqcCoeffs;
   COMPLEX16      UNUSED   hNQC;
-  REAL8Vector    UNUSED   *ampNQC = NULL, *phaseNQC = NULL;
+  REAL8Vector    *ampNQC = NULL, *phaseNQC = NULL;
 
   /* Ringdown freq used to check the sample rate */
   COMPLEX16Vector UNUSED modefreqVec;
@@ -1202,20 +1237,22 @@ int XLALSimIMRSpinEOBWaveform(
   COMPLEX16 UNUSED MultSphHarmM;
 
   /* We will have to switch to a high sample rate for ringdown attachment */
-  //REAL8 deltaTHigh;
-  //UINT4 resampFac;
-  //UINT4 resampPwr;
-  //REAL8 resampEstimate;
+  REAL8 deltaTHigh;
+  UINT4 resampFac;
+  UINT4 resampPwr;
+  REAL8 resampEstimate;
 
   /* How far will we have to step back to attach the ringdown? */
-  //REAL8 tStepBack;
-  //INT4  nStepBack;
+  REAL8 tStepBack;
+  INT4  nStepBack;
 
   /* Dynamics and details of the high sample rate part used to attach the ringdown */
-  //UINT4 hiSRndx;
-  //REAL8Vector timeHi, rHi, phiHi, prHi, pPhiHi;
-  //REAL8Vector *sigReHi = NULL, *sigImHi = NULL;
-  //REAL8Vector *omegaHi = NULL;
+  UINT4 hiSRndx;
+  REAL8Vector timeHi, phiDModHi, phiModHi;
+  REAL8Vector posVecxHi, posVecyHi, posVeczHi, momVecxHi, momVecyHi, momVeczHi;
+  REAL8Vector s1VecxHi, s1VecyHi, s1VeczHi, s2VecxHi, s2VecyHi, s2VeczHi;
+  REAL8Vector *sigReHi = NULL, *sigImHi = NULL;
+  REAL8Vector *omegaHi = NULL;
 
   /* Indices of peak frequency and final point */
   /* Needed to attach ringdown at the appropriate point */
@@ -1243,7 +1280,7 @@ int XLALSimIMRSpinEOBWaveform(
   /* Variables for the integrator */
   ark4GSLIntegrator       *integrator = NULL;
   REAL8Array              *dynamics   = NULL;
-  //REAL8Array              *dynamicsHi = NULL;
+  REAL8Array              *dynamicsHi = NULL;
   INT4                    retLen;
   INT4                    retLenRDPatch;
   REAL8  UNUSED           tMax;
@@ -1402,16 +1439,16 @@ int XLALSimIMRSpinEOBWaveform(
   /* TODO: Insert potentially necessary checks on the arguments */
 
   /* Calculate the time we will need to step back for ringdown */
-  //tStepBack = 100. * mTScaled;
-  //nStepBack = ceil( tStepBack / deltaT );
+  tStepBack = 150. * mTScaled;
+  nStepBack = ceil( tStepBack / deltaT );
 
   /* Calculate the resample factor for attaching the ringdown */
   /* We want it to be a power of 2 */
   /* If deltaT > Mtot/50, reduce deltaT by the smallest power of two for which deltaT < Mtot/50 */
-  //resampEstimate = 50. * deltaT / mTScaled;
-  //resampFac = 1;
+  resampEstimate = 50. * deltaT / mTScaled;
+  resampFac = 1;
   //resampFac = 1 << (UINT4)ceil(log2(resampEstimate));
-  /*
+  
   if ( resampEstimate > 1. )
   {
     resampPwr = (UINT4)ceil( log2( resampEstimate ) );
@@ -1419,8 +1456,7 @@ int XLALSimIMRSpinEOBWaveform(
     {
       resampFac *= 2u;
     }
-  }*/
-    
+  }
 
   /* Wrapper spin vectors used to calculate sigmas */
   s1VecOverMtMt.length = s2VecOverMtMt.length = 3;
@@ -2005,41 +2041,216 @@ if(importDynamicsAndGetDerivatives)
 
   printf("To be the man, you've got to beat the man! Woooooooo!!!!\n" );
 
-  REAL8Vector tVec;
-  tVec.length = retLen;
+  
+  tVec.length = posVecx.length = posVecy.length = posVecz.length = 
+  momVecx.length = momVecy.length = momVecz.length = 
+  s1Vecx.length = s1Vecy.length = s1Vecz.length = 
+  s2Vecx.length = s2Vecy.length = s2Vecz.length = 
+  phiDMod.length = phiMod.length = retLen;
+  
   tVec.data   = dynamics->data;
-
-  REAL8 *posVecx = dynamics->data+retLen;
-  REAL8 *posVecy = dynamics->data+2*retLen;
-  REAL8 *posVecz = dynamics->data+3*retLen;
-  REAL8 *momVecx = dynamics->data+4*retLen;
-  REAL8 *momVecy = dynamics->data+5*retLen;
-  REAL8 *momVecz = dynamics->data+6*retLen;
-  REAL8 *s1Vecx = dynamics->data+7*retLen;
-  REAL8 *s1Vecy = dynamics->data+8*retLen;
-  REAL8 *s1Vecz = dynamics->data+9*retLen;
-  REAL8 *s2Vecx = dynamics->data+10*retLen;
-  REAL8 *s2Vecy = dynamics->data+11*retLen;
-  REAL8 *s2Vecz = dynamics->data+12*retLen;
+  posVecx.data = dynamics->data+retLen;
+  posVecy.data = dynamics->data+2*retLen;
+  posVecz.data = dynamics->data+3*retLen;
+  momVecx.data = dynamics->data+4*retLen;
+  momVecy.data = dynamics->data+5*retLen;
+  momVecz.data = dynamics->data+6*retLen;
+  s1Vecx.data = dynamics->data+7*retLen;
+  s1Vecy.data = dynamics->data+8*retLen;
+  s1Vecz.data = dynamics->data+9*retLen;
+  s2Vecx.data = dynamics->data+10*retLen;
+  s2Vecy.data = dynamics->data+11*retLen;
+  s2Vecz.data = dynamics->data+12*retLen;
   //YP: change variable names to match those used in the waveform section
   //REAL8 *vphi   = dynamics->data+13*retLen;
   //REAL8 *phpart2= dynamics->data+14*retLen;
-  REAL8 *phiDMod= dynamics->data+13*retLen;
-  REAL8 *phiMod = dynamics->data+14*retLen;
+  phiDMod.data= dynamics->data+13*retLen;
+  phiMod.data = dynamics->data+14*retLen;
 
   out = fopen( "seobDynamics.dat", "w" );
   for ( i = 0; i < retLen; i++ )
   {
     //YP: output orbital phase and phase modulation separately, instead of their sum
     fprintf( out, "%.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e\n", 
-    i*deltaT/mTScaled, 
-    posVecx[i], posVecy[i], posVecz[i], momVecx[i], momVecy[i], momVecz[i],
-    s1Vecx[i], s1Vecy[i], s1Vecz[i], s2Vecx[i], s2Vecy[i], s2Vecz[i],
-    phiDMod[i], phiMod[i] );
+    tVec.data[i], 
+    posVecx.data[i], posVecy.data[i], posVecz.data[i], 
+    momVecx.data[i], momVecy.data[i], momVecz.data[i],
+    s1Vecx.data[i], s1Vecy.data[i], s1Vecz.data[i], 
+    s2Vecx.data[i], s2Vecy.data[i], s2Vecz.data[i],
+    phiDMod.data[i], phiMod.data[i] );
   }
   fclose( out );
 
   printf("DYNAMICS WRITTEN!!!!\n" );
+
+  /*
+   * STEP 3) Step back in time by tStepBack and volve EOB trajectory again 
+   *         using high sampling rate, stop at 0.3M out of the "EOB horizon".
+   */
+  /* Set up the high sample rate integration */
+  hiSRndx = retLen - nStepBack;
+  deltaTHigh = deltaT / (REAL8)resampFac;
+
+  fprintf( stderr, "Stepping back %d points - we expect %d points at high SR\n", nStepBack, nStepBack*resampFac );
+
+  values->data[0] = posVecx.data[hiSRndx];
+  values->data[1] = posVecy.data[hiSRndx];
+  values->data[2] = posVecz.data[hiSRndx];
+  values->data[3] = momVecx.data[hiSRndx];
+  values->data[4] = momVecy.data[hiSRndx];
+  values->data[5] = momVecz.data[hiSRndx];
+  values->data[6] = s1Vecx.data[hiSRndx];
+  values->data[7] = s1Vecy.data[hiSRndx];
+  values->data[8] = s1Vecz.data[hiSRndx];
+  values->data[9] = s2Vecx.data[hiSRndx];
+  values->data[10]= s2Vecy.data[hiSRndx];
+  values->data[11]= s2Vecz.data[hiSRndx];
+
+  fprintf( stderr, "Commencing high SR integration... \n" );
+  for( i=0; i<12; i++)fprintf(stderr, "%.16e\n", values->data[i]);
+  
+  /* For HiSR evolution, we stop at XXX, 
+   * or when any derivative of Hamiltonian becomes nan */
+  integrator->stop = XLALEOBSpinStopConditionBasedOnPR;
+
+  retLen = XLALAdaptiveRungeKutta4( integrator, &seobParams, values->data, 
+									0., 20./mTScaled, deltaTHigh/mTScaled, &dynamicsHi );
+  if ( retLen == XLAL_FAILURE )
+  {
+    XLAL_ERROR( XLAL_EFUNC );
+  }
+
+  fprintf( stderr, "We got %d points at high SR\n", retLen );
+  /* Set up pointers to the dynamics */
+  timeHi.length = posVecxHi.length = posVecyHi.length = posVeczHi.length = 
+  momVecxHi.length = momVecyHi.length = momVeczHi.length = 
+  s1VecxHi.length = s1VecyHi.length = s1VeczHi.length = 
+  s2VecxHi.length = s2VecyHi.length = s2VeczHi.length = 
+  phiDModHi.length = phiModHi.length = retLen;
+  
+  timeHi.data   = dynamicsHi->data;
+  posVecxHi.data = dynamicsHi->data+retLen;
+  posVecyHi.data = dynamicsHi->data+2*retLen;
+  posVeczHi.data = dynamicsHi->data+3*retLen;
+  momVecxHi.data = dynamicsHi->data+4*retLen;
+  momVecyHi.data = dynamicsHi->data+5*retLen;
+  momVeczHi.data = dynamicsHi->data+6*retLen;
+  s1VecxHi.data = dynamicsHi->data+7*retLen;
+  s1VecyHi.data = dynamicsHi->data+8*retLen;
+  s1VeczHi.data = dynamicsHi->data+9*retLen;
+  s2VecxHi.data = dynamicsHi->data+10*retLen;
+  s2VecyHi.data = dynamicsHi->data+11*retLen;
+  s2VeczHi.data = dynamicsHi->data+12*retLen;
+  //YP: change variable names to match those used in the waveform section
+  //REAL8 *vphi   = dynamics->data+13*retLen;
+  //REAL8 *phpart2= dynamics->data+14*retLen;
+  phiDModHi.data= dynamicsHi->data+13*retLen;
+  phiModHi.data = dynamicsHi->data+14*retLen;
+
+  out = fopen( "saDynamicsHi.dat", "w" );
+  for ( i = 0; i < retLen; i++ )
+  {
+    //YP: output orbital phase and phase modulation separately, instead of their sum
+    fprintf( out, "%.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e\n", 
+    timeHi.data[i], 
+    posVecxHi.data[i], posVecyHi.data[i], posVeczHi.data[i], 
+    momVecxHi.data[i], momVecyHi.data[i], momVeczHi.data[i],
+    s1VecxHi.data[i], s1VecyHi.data[i], s1VeczHi.data[i], 
+    s2VecxHi.data[i], s2VecyHi.data[i], s2VeczHi.data[i],
+    phiDModHi.data[i], phiModHi.data[i] );
+  }
+  fclose( out );
+
+  /* Allocate the high sample rate vectors */
+  sigReHi  = XLALCreateREAL8Vector( retLen + (UINT4)ceil( 20 / ( cimag(modeFreq) * deltaTHigh )) );
+  sigImHi  = XLALCreateREAL8Vector( retLen + (UINT4)ceil( 20 / ( cimag(modeFreq) * deltaTHigh )) );
+  omegaHi  = XLALCreateREAL8Vector( retLen + (UINT4)ceil( 20 / ( cimag(modeFreq) * deltaTHigh )) );
+  ampNQC   = XLALCreateREAL8Vector( retLen );
+  phaseNQC = XLALCreateREAL8Vector( retLen );
+
+  if ( !sigReHi || !sigImHi || !omegaHi || !ampNQC || !phaseNQC )
+  {
+    XLAL_ERROR( XLAL_ENOMEM );
+  }
+
+  memset( sigReHi->data, 0, sigReHi->length * sizeof( sigReHi->data[0] ));
+  memset( sigImHi->data, 0, sigImHi->length * sizeof( sigImHi->data[0] ));
+
+  /* Populate the high SR waveform */ 
+  // TO be done properly
+#if 0
+  REAL8 omegaOld = 0.0;
+  INT4  phaseCounter = 0;
+  for ( i = 0; i < retLen; i++ )
+  {
+    values->data[0] = rHi.data[i];
+    values->data[1] = phiHi.data[i];
+    values->data[2] = prHi.data[i];
+    values->data[3] = pPhiHi.data[i];
+
+    omegaHi->data[i] = omega = XLALSimIMRSpinAlignedEOBCalcOmega( values->data, &seobParams );
+    v = cbrt( omega );
+
+    /* Calculate the value of the Hamiltonian */
+    cartPosVec.data[0] = values->data[0];
+    cartMomVec.data[0] = values->data[2];
+    cartMomVec.data[1] = values->data[3] / values->data[0];
+
+    ham = XLALSimIMRSpinEOBHamiltonian( eta, &cartPosVec, &cartMomVec, &s1VecOverMtMt, &s2VecOverMtMt, sigmaKerr, sigmaStar, seobParams.tortoise, &seobCoeffs );
+
+    if ( XLALSimIMRSpinEOBGetSpinFactorizedWaveform( &hLM, values, v, ham, 2, 2, &seobParams )
+           == XLAL_FAILURE )
+    {
+      /* TODO: Clean-up */
+      XLAL_ERROR( XLAL_EFUNC );
+    }
+
+    ampNQC->data[i]  = cabs( hLM );
+    sigReHi->data[i] = (REAL4)(amp0 * creal(hLM));
+    sigImHi->data[i] = (REAL4)(amp0 * cimag(hLM));
+    phaseNQC->data[i]= carg( hLM ) + phaseCounter * LAL_TWOPI;
+
+    if ( i && phaseNQC->data[i] > phaseNQC->data[i-1] )
+    {
+      phaseCounter--;
+      phaseNQC->data[i] -= LAL_TWOPI;
+    }
+
+    if ( omega <= omegaOld && !peakIdx )
+    {
+      //printf( "Have we got the peak? omegaOld = %.16e, omega = %.16e\n", omegaOld, omega );
+      peakIdx = i;
+    }
+    omegaOld = omega;
+  }
+  //printf( "We now think the peak is at %d\n", peakIdx );
+  finalIdx = retLen - 1;
+#endif
+
+  /*
+   * STEP 4) Locate the peak of orbital frequency for NQC and QNM calculations
+   */
+
+  /*
+   * STEP 5) Calculate NQC correction using hi-sampling data
+   */
+
+  /*
+   * STEP 6) Calculate QNM excitation coefficients using hi-sampling data
+   */
+
+  /*
+   * STEP 7) Generate full inspiral waveform using desired sampling frequency
+   */
+
+  /*
+   * STEP 8) Generate full IMR modes -- attaching ringdown to inspiral
+   */
+
+  /*
+   * STEP 9) Generate full IMR hp and hx waveforms
+   */
+  
 
   /* ==============================
    *   Waveform Generation

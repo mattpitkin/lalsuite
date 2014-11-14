@@ -441,7 +441,7 @@ typedef
 struct tagEOBParams
 {
   REAL8 eta;
-  REAL8 omega;
+  REAL8 omega; UINT4 omegaPeaked;
   REAL8 m1;
   REAL8 m2;
   EOBACoefficients        *aCoeffs;
