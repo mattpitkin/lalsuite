@@ -112,6 +112,7 @@ XLALEOBSpinStopConditionBasedOnPR(double UNUSED t,
                            void UNUSED *funcParams
                           )
 {
+  int debugPK = 0;
   INT4 i;
   SpinEOBParams UNUSED *params = (SpinEOBParams *)funcParams;
   
@@ -136,7 +137,7 @@ XLALEOBSpinStopConditionBasedOnPR(double UNUSED t,
   {
 	  if( isnan(dvalues[i]) )
 	  {
-		  printf("\n isnan reached. r2 = %f\n", r2);
+		  if(debugPK)printf("\n isnan reached. r2 = %f\n", r2);
 		  return 1;
 	  }
   }
@@ -1148,7 +1149,7 @@ int XLALSimIMRSpinEOBWaveform(
         const REAL8     INspin2[]
      )
 {
-  int importDynamicsAndGetDerivatives = 0;
+  int importDynamicsAndGetDerivatives = 1;
   int debugPK = 0;
 
   INT4 i, k;
@@ -1264,8 +1265,8 @@ int XLALSimIMRSpinEOBWaveform(
   /* Parameter structures containing important parameters for the model */
   SpinEOBParams           seobParams;
   SpinEOBHCoeffs          seobCoeffs;
-  EOBParams               eobParams;
-  FacWaveformCoeffs       hCoeffs;
+  EOBParams                   eobParams;
+  FacWaveformCoeffs    hCoeffs;
   NewtonMultipolePrefixes prefixes;
 
   /* Set up structures and calculate necessary PN parameters */
@@ -2272,41 +2273,109 @@ if(importDynamicsAndGetDerivatives)
   omegasav2 = -1.0;
   omegasav  = -0.5;
   omega     =  0.0;
-  for ( i = 0; i < retLen; i++ )
+  for ( i = 0, peakIdx = 0; i < retLen; i++ )
   {
     for ( j = 0; j < values->length; j++ )
     {
-      values->data[j] = *(dynamics->data+(j+1)*retLen+i);
+      values->data[j] = *(dynamicsHi->data+(j+1)*retLen+i);
     }
-    vX = XLALSpinHcapNumDerivWRTParam( 3, values->data, &seobParams );
-    vY = XLALSpinHcapNumDerivWRTParam( 4, values->data, &seobParams );
-    vZ = XLALSpinHcapNumDerivWRTParam( 5, values->data, &seobParams );
-    rCrossV_x = posVecy[i] * vZ - posVecz[i] * vY;
-    rCrossV_y = posVecz[i] * vX - posVecx[i] * vZ;
-    rCrossV_z = posVecx[i] * vY - posVecy[i] * vX;
-
-    magR = sqrt(posVecx[i]*posVecx[i] + posVecy[i]*posVecy[i] + posVecz[i]*posVecz[i] );
-    omega = sqrt(rCrossV_x*rCrossV_x + rCrossV_y*rCrossV_y + rCrossV_z*rCrossV_z ) / (magR*magR);
-    if ( omega < omegasav )
-      break;
+    
+    /* Calculate dr/dt */
+    status = XLALSpinHcapRvecDerivative( 0, values->data, dvalues->data, (void*) &seobParams);  
+    if( status != XLAL_SUCCESS )
+    {
+		printf(" Calculation of dr/dt failed while computing omegaHi time series\n");
+		XLAL_ERROR( XLAL_EFUNC );
+	}
+    
+    /* Calculare r x dr/dt */
+    vX = dvalues->data[0];
+    vY = dvalues->data[1];
+    vZ = dvalues->data[2];
+    rCrossV_x = posVecyHi.data[i] * vZ - posVeczHi.data[i] * vY;
+    rCrossV_y = posVeczHi.data[i] * vX - posVecxHi.data[i] * vZ;
+    rCrossV_z = posVecxHi.data[i] * vY - posVecyHi.data[i] * vX;
+    /* Calculate omega = |r x dr/dt| / r*r */
+    magR = sqrt(posVecx.data[i]*posVecx.data[i] + posVecy.data[i]*posVecy.data[i] + posVecz.data[i]*posVecz.data[i] );
+    omegaHi->data[i] = omega = sqrt(rCrossV_x*rCrossV_x + rCrossV_y*rCrossV_y + rCrossV_z*rCrossV_z ) / (magR*magR);
+    if ( omega < omegasav  && !peakIdx)
+    { 
+	  peakIdx = i;
+	  printf("PK: Crude peak of Omega is at idx = %d\n", peakIdx);
+	}
     else
     {
       omegasav2 = omegasav;
       omegasav  = omega;
     }
   }
-  if ( i == retLen - 1 )
+  if ( i == retLen - 1 && !peakIdx)
   {
-    printf("YP: Error! Failed to find peak of omega!\n");
+    printf("YP: Error! Failed to find peak of omega!\n"); // This is a bit harsh!
     abort();
   }
   else
   {
-    tPeakOmega = (i-(4.*omegasav-3.*omega-omegasav2)/(2.*omegasav-omega-omegasav2)/2.)*deltaT/mTScaled;
+    tPeakOmega = (i-(4.*omegasav-3.*omega-omegasav2)/(2.*omegasav-omega-omegasav2)/2.)*deltaTHigh/mTScaled;
   }
-  /* WaveStep 1.2: calculate J at merger */
+
+  /* Stuff to find the actual peak time */
   gsl_spline    *spline = NULL;
   gsl_interp_accel *acc = NULL;
+  REAL8 omegaDeriv1; //, omegaDeriv2;
+  REAL8 time1, time2;
+  REAL8 UNUSED timePeak, timewavePeak = 0., omegaDerivMid;
+  REAL8 UNUSED sigAmpSqHi = 0., oldsigAmpSqHi = 0.;
+  INT4  UNUSED peakCount = 0;
+
+  spline = gsl_spline_alloc( gsl_interp_cspline, retLen );
+  acc    = gsl_interp_accel_alloc();
+
+  time1 = dynamicsHi->data[peakIdx];
+
+  gsl_spline_init( spline, dynamicsHi->data, omegaHi->data, retLen );
+  omegaDeriv1 = gsl_spline_eval_deriv( spline, time1, acc );
+  if ( omegaDeriv1 > 0. )
+  {
+    time2 = dynamicsHi->data[peakIdx+1];
+    //omegaDeriv2 = gsl_spline_eval_deriv( spline, time2, acc );
+  }
+  else
+  {
+    //omegaDeriv2 = omegaDeriv1;
+    time2 = time1;
+    time1 = dynamicsHi->data[peakIdx-1];
+    peakIdx--;
+    omegaDeriv1 = gsl_spline_eval_deriv( spline, time1, acc );
+  }
+
+  do
+  {
+    timePeak = ( time1 + time2 ) / 2.;
+    omegaDerivMid = gsl_spline_eval_deriv( spline, timePeak, acc );
+
+    if ( omegaDerivMid * omegaDeriv1 < 0.0 )
+    {
+      //omegaDeriv2 = omegaDerivMid;
+      time2 = timePeak;
+    }
+    else
+    {
+      omegaDeriv1 = omegaDerivMid;
+      time1 = timePeak;
+    }
+  }
+  while ( time2 - time1 > 1.0e-5 );
+
+  /*gsl_spline_free( spline );
+  gsl_interp_accel_free( acc );
+  */
+  XLALPrintInfo( "Estimation of the peak is now at time %.16e\n", timePeak );
+
+
+  /* WaveStep 1.2: calculate J at merger */
+  //gsl_spline    *spline = NULL;
+  //gsl_interp_accel *acc = NULL;
   spline = gsl_spline_alloc( gsl_interp_cspline, retLen );
   acc    = gsl_interp_accel_alloc();
 
@@ -2510,11 +2579,11 @@ if(importDynamicsAndGetDerivatives)
     memset( cartPosData, 0, sizeof( cartPosData ) );
     memset( cartMomData, 0, sizeof( cartMomData ) );
 
-    rCrossV_x = posVecy[i] * vZ - posVecz[i] * vY;
-    rCrossV_y = posVecz[i] * vX - posVecx[i] * vZ;
-    rCrossV_z = posVecx[i] * vY - posVecy[i] * vX;
+    rCrossV_x = posVecy.data[i] * vZ - posVecz.data[i] * vY;
+    rCrossV_y = posVecz.data[i] * vX - posVecx.data[i] * vZ;
+    rCrossV_z = posVecx.data[i] * vY - posVecy.data[i] * vX;
 
-    magR = sqrt(posVecx[i]*posVecx[i] + posVecy[i]*posVecy[i] + posVecz[i]*posVecz[i] );
+    magR = sqrt(posVecx.data[i]*posVecx.data[i] + posVecy.data[i]*posVecy.data[i] + posVecz.data[i]*posVecz.data[i] );
     omega = sqrt(rCrossV_x*rCrossV_x + rCrossV_y*rCrossV_y + rCrossV_z*rCrossV_z ) / (magR*magR);
     vOmega = v = cbrt( omega );
     amp = amp0 * vOmega * vOmega;
@@ -2532,7 +2601,7 @@ if(importDynamicsAndGetDerivatives)
 
     aI2P = atan2( LNhy, LNhx );
     bI2P = acos( LNhz );
-    gI2P = -phiMod[i];
+    gI2P = -phiMod.data[i];
     LframeEx[0] =  cos(aI2P)*cos(bI2P)*cos(gI2P) - sin(aI2P)*sin(gI2P);
     LframeEx[1] =  sin(aI2P)*cos(bI2P)*cos(gI2P) + cos(aI2P)*sin(gI2P);
     LframeEx[2] = -sin(bI2P)*cos(gI2P);
@@ -2680,7 +2749,7 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
   printf("YP: P-frame waveforms written to file.\n");
 
   REAL8Vector *rdMatchPoint = XLALCreateREAL8Vector( 3 );
-  REAL8Vector *sigReHi = NULL, *sigImHi = NULL;
+  //REAL8Vector *sigReHi = NULL, *sigImHi = NULL;
   sigReHi  = XLALCreateREAL8Vector( retLen + retLenRDPatch );
   sigImHi  = XLALCreateREAL8Vector( retLen + retLenRDPatch );
   if ( !sigReHi || !sigImHi || !rdMatchPoint )
