@@ -1762,7 +1762,7 @@ static INT4 XLALSimIMRSpinEOBGetPrecSpinFactorizedWaveform(
 			printf("Calculating hNewton, with v = %.12e, vPhi = %.12e, r = %.12e, Phi = %.12e, l = %d, m = %d\n",
                 v, vPhi, r, values->data[1], (UINT4) l, (UINT4) m );
         }
-        status = XLALSimIMRSpinEOBFluxCalculateNewtonianMultipole( &hNewton, 
+        status = XLALSimIMRSpinEOBCalculateNewtonianMultipole( &hNewton, 
             vPhi2, r, cartvalues->data[12]+cartvalues->data[13], (UINT4)l, m, params->eobParams );
         if ( status == XLAL_FAILURE )
         {
