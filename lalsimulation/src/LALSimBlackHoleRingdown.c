@@ -900,7 +900,6 @@ INT4 XLALSimIMREOBFinalMassSpin(
       *finalSpin = 3.464102 * eta - 2.9 * eta2;
       break;
     case SEOBNRv2:
-    case SEOBNRv3:
       a1     = spin1[2];
       a2     = spin2[2];
       q      = mass1 / mass2;

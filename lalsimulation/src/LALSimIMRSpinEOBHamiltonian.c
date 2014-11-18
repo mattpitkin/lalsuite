@@ -1353,7 +1353,7 @@ UNUSED static int XLALSpinHcapRvecDerivative(
 	
 	
   /* Now calculate derivatives w.r.t. each parameter */
-  for ( i = 0; i < 12; i++ )
+  for ( i = 0; i < 6; i++ )
   {
     params.varyParam = i;
     if ( i >=6 && i < 9 )
@@ -1370,7 +1370,8 @@ UNUSED static int XLALSpinHcapRvecDerivative(
     }
     else if ( i < 3 )
     {
-		params.params->tortoise = 2;
+	    params.params->seobCoeffs->updateHCoeffs = 1;
+      	params.params->tortoise = 2;
 		memcpy( tmpValues, params.values, sizeof(tmpValues) );
 		tmpValues[3] = tmpP[0]; tmpValues[4] = tmpP[1]; tmpValues[5] = tmpP[2];
 		params.values = tmpValues;
