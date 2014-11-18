@@ -2311,7 +2311,7 @@ if(importDynamicsAndGetDerivatives)
       spline = gsl_spline_alloc( gsl_interp_cspline, retLen );
       acc    = gsl_interp_accel_alloc();
       
-      time1 = timeHi.data[peakIdx-1];
+      time1 = timeHi.data[peakIdx-2];
       if(debugPK)printf("time of crude peak = %e\n", time1); fflush(NULL);
       
       gsl_spline_init( spline, timeHi.data, omegaHi->data, retLen );
@@ -2749,7 +2749,7 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
     h2m1TS->data->data[i] = conjl(hLM);
     h20TS->data->data[i]  = 0.0;
 
-    if (i >= 95 )
+    if (i == 95 )
     {
       printf("%.16e %.16e %.16e\n",ham, omega, v);
       printf("%.16e %.16e %.16e\n",values->data[0],values->data[1],values->data[2]);
