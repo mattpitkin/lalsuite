@@ -1711,8 +1711,8 @@ static INT4 XLALSimIMRSpinEOBGetPrecSpinFactorizedWaveform(
         //pp = sqrt( rcrossp_x*rcrossp_x + rcrossp_y*rcrossp_y + rcrossp_z*rcrossp_z );
     
 	    v2	= v * v;
-        Omega   = v2 * v;
-        vh3     = Hreal * Omega;
+      Omega   = v2 * v;
+      vh3     = Hreal * Omega;
 	    vh	= cbrt(vh3);
 	    eulerlogxabs = LAL_GAMMA + log( 2.0 * (REAL8)m * v );
 

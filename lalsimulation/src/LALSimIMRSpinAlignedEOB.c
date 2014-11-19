@@ -1152,7 +1152,7 @@ int XLALSimIMRSpinEOBWaveform(
      )
 {
   int importDynamicsAndGetDerivatives = 0;
-  int debugPK = 1;
+  int debugPK = 0;
 
   INT4 i, k;
   UINT4 j;
@@ -1365,6 +1365,21 @@ int XLALSimIMRSpinEOBWaveform(
   values->data[9] = 1.3483616572900000e-02 * (mTotal/m2) * (mTotal/m2);
   values->data[10] = 2.1175823681400000e-22 * (mTotal/m2) * (mTotal/m2);
   values->data[11] = 9.7964208715400000e-03 * (mTotal/m2) * (mTotal/m2);
+
+  /** Sergei: r = 20M, spin pointing at the smaller BH, orbital omega ~0.015 */
+  /*values->data[0] = 2.000000000000000e+01;
+  values->data[1] = 0;
+  values->data[2] = 0;
+  values->data[3] = -1.1854855421800000e-04;
+  values->data[4] = 2.1180585973900001e-01;
+  values->data[5] = -4.0060159474199999e-05;
+  values->data[6] = -5.e-01 * (mTotal/m1) * (mTotal/m1);
+  values->data[7] = 0 * (mTotal/m1) * (mTotal/m1);
+  values->data[8] = 0 * (mTotal/m1) * (mTotal/m1);
+  values->data[9] = 0 * (mTotal/m2) * (mTotal/m2);
+  values->data[10] =0  * (mTotal/m2) * (mTotal/m2);
+  values->data[11] = 0 * (mTotal/m2) * (mTotal/m2);*/
+
 
   /* These ones did not work with the cpp code -- underflow error
   values->data[0] = 29.9;
@@ -1601,9 +1616,6 @@ int XLALSimIMRSpinEOBWaveform(
 if(importDynamicsAndGetDerivatives)
 {  
   nqcCoeffs.a1 = nqcCoeffs.a2 = nqcCoeffs.a3 = nqcCoeffs.a3S = nqcCoeffs.a4 = nqcCoeffs.a5 = nqcCoeffs.b1 = nqcCoeffs.b2 = nqcCoeffs.b3 = nqcCoeffs.b4 = 0;
-  if(debugPK)printf("\tl = %d, m = %d, NQC: a1 = %.16e, a2 = %.16e, a3 = %.16e, a3S = %.16e, a4 = %.16e, a5 = %.16e\n\tb1 = %.16e, b2 = %.16e, b3 = %.16e, b4 = %.16e\n", 
-                           2, 2, nqcCoeffs.a1, nqcCoeffs.a2, nqcCoeffs.a3, nqcCoeffs.a3S, nqcCoeffs.a4, nqcCoeffs.a5, 
-                           nqcCoeffs.b1, nqcCoeffs.b2, nqcCoeffs.b3, nqcCoeffs.b4 );
   //FILE* dynfin = fopen( "Data_q_5_chi1_0.247214_chi2_0.352671_dSO_-69.5_dSS_2.75P.dat", "r" );
   FILE* dynfin = fopen( "seobDynamics.dat", "r" );
   FILE* dynfout= fopen( "DynamicsDerivatives.dat", "w");
@@ -2137,7 +2149,7 @@ if(importDynamicsAndGetDerivatives)
     XLAL_ERROR( XLAL_EFUNC );
   }*/
   // PK: FIXME -- when QNM Freq function is written for SEOBNRv3 uncomment these lines */
-  retLenRDPatch = 1000;//(UINT4)ceil( 20 / ( cimag(modeFreq) * deltaT ));
+  retLenRDPatch = 10000;//(UINT4)ceil( 20 / ( cimag(modeFreq) * deltaT ));
   
   /* Allocate the high sample rate vectors */
   sigReHi  = XLALCreateREAL8Vector( retLen + retLenRDPatch );
@@ -2479,6 +2491,7 @@ if(importDynamicsAndGetDerivatives)
    */
   /* WaveStep 2.1: create time-series containers for euler angles and hlm harmonics */
   retLen = retLenLow;
+  
   SphHarmTimeSeries *hlmPTS = NULL;
   SphHarmTimeSeries *hIMRlmJTS = NULL;
   REAL8TimeSeries UNUSED *hPlusTS  = XLALCreateREAL8TimeSeries( "H_PLUS", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
@@ -2557,7 +2570,7 @@ if(importDynamicsAndGetDerivatives)
        break;
   }*/
 
-  /* WaveStep 2.3: main loop for quasi-nonprecessing waveform generation */
+  /* WaveStep 2.3.1: main loop for quasi-nonprecessing waveform generation -- LOW SR*/
   // Generating modes for coarsely sampled portion 
   if(debugPK)printf("Generating precessing-frame modes for coarse dynamics\n");
   out = fopen( "rotDynamics.dat", "w" );
@@ -2771,7 +2784,7 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
   fclose( out );
   printf("YP: quasi-nonprecessing modes generated.\n");
 
-  /* WaveStep 2.4: add quasi-nonprecessing spherical harmonic modes to the SphHarmTimeSeries structure */
+  /* WaveStep 2.4.1: add quasi-nonprecessing spherical harmonic modes to the SphHarmTimeSeries structure */
   hlmPTS = XLALSphHarmTimeSeriesAddMode( hlmPTS, h22TS, 2, 2 );
   hlmPTS = XLALSphHarmTimeSeriesAddMode( hlmPTS, h21TS, 2, 1 );
   hlmPTS = XLALSphHarmTimeSeriesAddMode( hlmPTS, h20TS, 2, 0 );
@@ -2798,6 +2811,303 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
   }
   fclose( out );
   printf("YP: P-frame waveforms written to file.\n");
+
+
+  /* WaveStep 2.3.2: main loop for quasi-nonprecessing waveform generation -- HIGH SR */
+  retLen = retLenHi;
+  
+  SphHarmTimeSeries *hlmPTSHi = NULL;
+  //SphHarmTimeSeries *hIMRlmJTSHi = NULL;
+  REAL8TimeSeries UNUSED *hPlusTSHi  = XLALCreateREAL8TimeSeries( "H_PLUS", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  REAL8TimeSeries UNUSED *hCrossTSHi = XLALCreateREAL8TimeSeries( "H_CROSS", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  REAL8TimeSeries *alphaI2PTSHi = XLALCreateREAL8TimeSeries( "alphaI2P", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  REAL8TimeSeries  *betaI2PTSHi = XLALCreateREAL8TimeSeries(  "betaI2P", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  REAL8TimeSeries *gammaI2PTSHi = XLALCreateREAL8TimeSeries( "gammaI2P", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  REAL8TimeSeries *alphaP2JTSHi = XLALCreateREAL8TimeSeries( "alphaP2J", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  REAL8TimeSeries  *betaP2JTSHi = XLALCreateREAL8TimeSeries(  "betaP2J", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  REAL8TimeSeries *gammaP2JTSHi = XLALCreateREAL8TimeSeries( "gammaP2J", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  REAL8Sequence *tlistHi        = NULL;
+  REAL8Sequence *tlistRDPatchHi = NULL;
+  COMPLEX16TimeSeries *h22TSHi   = XLALCreateCOMPLEX16TimeSeries( "H_22",   &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h21TSHi   = XLALCreateCOMPLEX16TimeSeries( "H_21",   &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h20TSHi   = XLALCreateCOMPLEX16TimeSeries( "H_20",   &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h2m1TSHi  = XLALCreateCOMPLEX16TimeSeries( "H_2m1",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h2m2TSHi  = XLALCreateCOMPLEX16TimeSeries( "H_2m2",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h22PTSHi  = XLALCreateCOMPLEX16TimeSeries( "HP_22",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h21PTSHi  = XLALCreateCOMPLEX16TimeSeries( "HP_21",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h20PTSHi  = XLALCreateCOMPLEX16TimeSeries( "HP_20",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h2m1PTSHi = XLALCreateCOMPLEX16TimeSeries( "HP_2m1", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h2m2PTSHi = XLALCreateCOMPLEX16TimeSeries( "HP_2m2", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  /*COMPLEX16TimeSeries *h22JTSHi  = XLALCreateCOMPLEX16TimeSeries( "HJ_22",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h21JTSHi  = XLALCreateCOMPLEX16TimeSeries( "HJ_21",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h20JTSHi  = XLALCreateCOMPLEX16TimeSeries( "HJ_20",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h2m1JTSHi = XLALCreateCOMPLEX16TimeSeries( "HJ_2m1", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h2m2JTSHi = XLALCreateCOMPLEX16TimeSeries( "HJ_2m2", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *hJTSHi    = XLALCreateCOMPLEX16TimeSeries( "HJ",     &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *hIMR22JTS  = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_22",  &tc, 0.0, deltaT, &lalStrainUnit,
+                                                                   retLen + retLenRDPatch );
+  COMPLEX16TimeSeries *hIMR21JTS  = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_21",  &tc, 0.0, deltaT, &lalStrainUnit,
+                                                                   retLen + retLenRDPatch );
+  COMPLEX16TimeSeries *hIMR20JTS  = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_20",  &tc, 0.0, deltaT, &lalStrainUnit,
+                                                                   retLen + retLenRDPatch );
+  COMPLEX16TimeSeries *hIMR2m1JTS = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_2m1", &tc, 0.0, deltaT, &lalStrainUnit,
+                                                                   retLen + retLenRDPatch );
+  COMPLEX16TimeSeries *hIMR2m2JTS = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_2m2", &tc, 0.0, deltaT, &lalStrainUnit,
+                                                                   retLen + retLenRDPatch );
+  COMPLEX16TimeSeries *hIMRJTS    = XLALCreateCOMPLEX16TimeSeries( "HIMRJ",     &tc, 0.0, deltaT, &lalStrainUnit,
+                                                                   retLen + retLenRDPatch );*/
+  if ( !(tlistHi = XLALCreateREAL8Vector( retLen )) || !(tlistRDPatchHi = XLALCreateREAL8Vector( retLen + retLenRDPatch )) )
+  {
+    XLAL_ERROR(  XLAL_ENOMEM );
+  }
+  memset( tlistHi->data, 0, tlistHi->length * sizeof( REAL8 ));
+  memset( tlistRDPatchHi->data, 0, tlistRDPatchHi->length * sizeof( REAL8 ));
+  for ( i = 0; i < retLen; i++ )
+  {
+    tlistHi->data[i] = i * deltaTHigh/mTScaled;
+    tlistHi->data[i] = i * deltaTHigh/mTScaled;
+  }
+  for ( i = retLen; i < retLen + retLenRDPatch; i++ )
+  {
+    tlistHi->data[i] = i * deltaTHigh/mTScaled;
+  }
+
+  
+  // Generating modes for finely sampled portion 
+  if(debugPK)printf("Generating precessing-frame modes for fine dynamics\n");
+  out = fopen( "rotDynamicsHi.dat", "w" );
+  for ( i = 0; i < retLen; i++ )
+  {
+    for ( j = 0; j < values->length; j++ )
+    {
+      values->data[j] = dynamicsHi->data[(j+1)*retLen + i];
+      if ( i == 0 ) printf("value (length=%d) %d: %.16e\n", values->length, j,values->data[j]);
+    }
+
+  /* Calculate dr/dt */
+  memset( dvalues->data, 0, 14*sizeof(dvalues->data[0]));
+  status = XLALSpinHcapRvecDerivative( 0, values->data, dvalues->data, &seobParams);  
+  vX = dvalues->data[0];  
+  vY = dvalues->data[1];
+  vZ = dvalues->data[2];
+
+   /* Cartesian vectors needed to calculate Hamiltonian */
+    cartPosVec.length = cartMomVec.length = 3;
+    cartPosVec.data = cartPosData;
+    cartMomVec.data = cartMomData;
+    memset( cartPosData, 0, sizeof( cartPosData ) );
+    memset( cartMomData, 0, sizeof( cartMomData ) );
+
+    rCrossV_x = posVecyHi.data[i] * vZ - posVeczHi.data[i] * vY;
+    rCrossV_y = posVeczHi.data[i] * vX - posVecxHi.data[i] * vZ;
+    rCrossV_z = posVecxHi.data[i] * vY - posVecyHi.data[i] * vX;
+
+    magR = sqrt(posVecxHi.data[i]*posVecxHi.data[i] + posVecyHi.data[i]*posVecyHi.data[i] + posVeczHi.data[i]*posVeczHi.data[i] );
+    omega = sqrt(rCrossV_x*rCrossV_x + rCrossV_y*rCrossV_y + rCrossV_z*rCrossV_z ) / (magR*magR);
+    vOmega = v = cbrt( omega );
+    amp = amp0 * vOmega * vOmega;
+
+    LNhx  = rCrossV_x;
+    LNhy  = rCrossV_y;
+    LNhz  = rCrossV_z;
+    magLN = sqrt(LNhx*LNhx + LNhy*LNhy + LNhz*LNhz);
+    LNhx  = LNhx / magLN;
+    LNhy  = LNhy / magLN;
+    LNhz  = LNhz / magLN;
+
+    aI2P = atan2( LNhy, LNhx );
+    bI2P = acos( LNhz );
+    gI2P = -phiModHi.data[i];
+    LframeEx[0] =  cos(aI2P)*cos(bI2P)*cos(gI2P) - sin(aI2P)*sin(gI2P);
+    LframeEx[1] =  sin(aI2P)*cos(bI2P)*cos(gI2P) + cos(aI2P)*sin(gI2P);
+    LframeEx[2] = -sin(bI2P)*cos(gI2P);
+    LframeEy[0] = -cos(aI2P)*cos(bI2P)*sin(gI2P) - sin(aI2P)*cos(gI2P);
+    LframeEy[1] = -sin(aI2P)*cos(bI2P)*sin(gI2P) + cos(aI2P)*cos(gI2P);
+    LframeEy[2] =  sin(bI2P)*sin(gI2P);
+    LframeEz[0] =  LNhx;
+    LframeEz[1] =  LNhy;
+    LframeEz[2] =  LNhz;
+    aP2J = atan2(JframeEz[0]*LframeEy[0]+JframeEz[1]*LframeEy[1]+JframeEz[2]*LframeEy[2],
+                 JframeEz[0]*LframeEx[0]+JframeEz[1]*LframeEx[1]+JframeEz[2]*LframeEx[2]);
+    bP2J = acos( JframeEz[0]*LframeEz[0]+JframeEz[1]*LframeEz[1]+JframeEz[2]*LframeEz[2]);
+    gP2J = atan2(  JframeEy[0]*LframeEz[0]+JframeEy[1]*LframeEz[1]+JframeEy[2]*LframeEz[2],
+                 -(JframeEx[0]*LframeEz[0]+JframeEx[1]*LframeEz[1]+JframeEx[2]*LframeEz[2]));
+
+if (i==0||i==1900) printf("{{%f,%f,%f},{%f,%f,%f},{%f,%f,%f}}\n",JframeEx[0],JframeEx[1],JframeEx[2],JframeEy[0],JframeEy[1],JframeEy[2],JframeEz[0],JframeEz[1],JframeEz[2]);
+if (i==0||i==1900) printf("{{%f,%f,%f},{%f,%f,%f},{%f,%f,%f}}\n",LframeEx[0],LframeEx[1],LframeEx[2],LframeEy[0],LframeEy[1],LframeEy[2],LframeEz[0],LframeEz[1],LframeEz[2]);
+if (i==0||i==1900) printf("YP: study time = %f\n",i*deltaTHigh/mTScaled);
+if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+JframeEy[1]*LframeEz[1]+JframeEy[2]*LframeEz[2], JframeEx[0]*LframeEz[0]+JframeEx[1]*LframeEz[1]+JframeEx[2]*LframeEz[2], gP2J, atan2(-0.365446,-0.378524));
+    /* I2P Euler angles are stored only for debugging purposes */
+    alphaI2PTSHi->data->data[i] = aI2P;
+     betaI2PTSHi->data->data[i] = bI2P;
+    gammaI2PTSHi->data->data[i] = gI2P;
+    alphaP2JTSHi->data->data[i] = -gP2J;
+     betaP2JTSHi->data->data[i] = 0.*LAL_PI/2.-bP2J;
+    gammaP2JTSHi->data->data[i] = -aP2J;
+
+    /* Calculate the value of the Hamiltonian */
+    cartPosVec.data[0] = values->data[0];
+    cartPosVec.data[1] = values->data[1];
+    cartPosVec.data[2] = values->data[2];
+    cartMomVec.data[0] = values->data[3];
+    cartMomVec.data[1] = values->data[4];
+    cartMomVec.data[2] = values->data[5];
+ 
+    /* Update Hamiltonian coefficients as per |Skerr| */
+    for( k = 0; k < 3; k++ )
+    {
+			s1DataNorm[k] = values->data[k+6];
+			s2DataNorm[k] = values->data[k+9];
+			s1Data[k] = s1DataNorm[k] * mTotal * mTotal;
+			s2Data[k] = s2DataNorm[k] * mTotal * mTotal;
+    }
+    s1Vec.data = s1Data;
+    s2Vec.data = s2Data;
+    
+    s1VecOverMtMt.data = s1DataNorm;
+    s2VecOverMtMt.data = s2DataNorm;
+    
+    seobParams.s1Vec = &s1VecOverMtMt;
+    seobParams.s2Vec = &s2VecOverMtMt;
+    
+    XLALSimIMRSpinEOBCalculateSigmaStar( sigmaStar, m1, m2, &s1Vec, &s2Vec );
+    XLALSimIMRSpinEOBCalculateSigmaKerr( sigmaKerr, m1, m2, &s1Vec, &s2Vec );
+    
+    seobParams.a = a = sqrt(inner_product(sigmaKerr->data, sigmaKerr->data));
+    
+    rcrossrdot[0] = LNhx; 
+    rcrossrdot[1] = LNhy; 
+    rcrossrdot[2] = LNhz;
+    s1dotLN = inner_product(s1Data, rcrossrdot) / (m1*m1);
+    s2dotLN = inner_product(s2Data, rcrossrdot) / (m2*m2);
+    
+    chiS = 0.5 * (s1dotLN + s2dotLN);
+    chiA = 0.5 * (s1dotLN - s2dotLN);
+
+    switch ( SpinAlignedEOBversion )
+    {
+     case 1:
+       tplspin = 0.0;
+       break;
+     case 2:
+       tplspin = (1.-2.*eta) * chiS + (m1 - m2)/(m1 + m2) * chiA;
+       break;
+     default:
+       XLALPrintError( "XLAL Error - %s: Unknown SEOBNR version!\nAt present only v1 and v2 are available.\n", __func__);
+       XLAL_ERROR( XLAL_EINVAL );
+       break;
+    }
+
+    if ( XLALSimIMRCalculateSpinEOBHCoeffs( &seobCoeffs, eta, a, 
+                          SpinAlignedEOBversion ) == XLAL_FAILURE )
+      printf("\nSomething went wrong evaluating XLALSimIMRCalculateSpinEOBHCoeffs in step %d of coarse dynamics\n", 
+			i );
+
+    /* Update hlm coefficients */
+    if ( XLALSimIMREOBCalcSpinFacWaveformCoefficients( &hCoeffs, m1, m2, eta, 
+        tplspin, chiS, chiA, SpinAlignedEOBversion ) == XLAL_FAILURE )
+      printf("\nSomething went wrong evaluating XLALSimIMRCalculateSpinEOBHCoeffs in step %d of coarse dynamics\n", 
+			i );
+    
+    ham = XLALSimIMRSpinEOBHamiltonian( eta, &cartPosVec, &cartMomVec,
+                  &s1VecOverMtMt, &s2VecOverMtMt,
+                  sigmaKerr, sigmaStar, seobParams.tortoise, &seobCoeffs );
+
+    /* Calculate the polar data */
+    polarDynamics.length = 4;
+    polarDynamics.data   = polData;
+    
+    /* Calculate the orbital angular momentum */
+    Lx = values->data[1]*values->data[5] - values->data[2]*values->data[4];
+    Ly = values->data[2]*values->data[3] - values->data[0]*values->data[5];
+    Lz = values->data[0]*values->data[4] - values->data[1]*values->data[3];
+    
+    magL = sqrt( Lx*Lx + Ly*Ly + Lz*Lz );
+
+    polData[0] = sqrt( values->data[0]*values->data[0] + values->data[1]*values->data[1] 
+						+ values->data[2]*values->data[2] );
+    polData[1] = phiModHi.data[i] + phiDModHi.data[i];
+    polData[2] = (values->data[0]*values->data[3] + values->data[1]*values->data[4] 
+				+ values->data[2]*values->data[5]) / polData[0];
+    polData[3] = magL;
+
+
+    if ( XLALSimIMRSpinEOBGetPrecSpinFactorizedWaveform( &hLM, &polarDynamics, values, v, ham, 2, 2, &seobParams )
+           == XLAL_FAILURE )
+    {
+      XLAL_ERROR( XLAL_EFUNC );
+    }
+    if ( XLALSimIMRSpinEOBNonQCCorrection( &hNQC, values, omega, &nqcCoeffs ) == XLAL_FAILURE )
+    {
+      XLAL_ERROR( XLAL_EFUNC );
+    }
+    hLM *= hNQC;
+    h22TSHi->data->data[i]  = hLM;
+    h2m2TSHi->data->data[i] = conjl(hLM);
+
+    fprintf( out, "%.16e %.16e %.16e %.16e %.16e %.16e %.16e ",
+             i*deltaTHigh/mTScaled, aI2P, bI2P, gI2P, aP2J, bP2J, gP2J );
+    fprintf( out, "%.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e\n",
+             vX, vY, vZ, LNhx, LNhy, LNhz, creal(hLM), cimag(hLM) );
+
+    if ( XLALSimIMRSpinEOBGetPrecSpinFactorizedWaveform( &hLM, &polarDynamics, values, v, ham, 2, 1, &seobParams )
+           == XLAL_FAILURE )
+    {
+      XLAL_ERROR( XLAL_EFUNC );
+    }
+    h21TSHi->data->data[i]  = hLM;
+    h2m1TSHi->data->data[i] = conjl(hLM);
+    h20TSHi->data->data[i]  = 0.0;
+
+    if (i == 95 )
+    {
+      printf("%.16e %.16e %.16e\n",ham, omega, v);
+      printf("%.16e %.16e %.16e\n",values->data[0],values->data[1],values->data[2]);
+      printf("%.16e %.16e %.16e\n",values->data[3],values->data[4],values->data[5]);
+      printf("%.16e %.16e %.16e\n",values->data[6],values->data[7],values->data[8]);
+      printf("%.16e %.16e %.16e\n",values->data[9],values->data[10],values->data[11]);
+      printf("%.16e %.16e %.16e %.16e %.16e %.16e\n",nqcCoeffs.a1,nqcCoeffs.a2,nqcCoeffs.a3,nqcCoeffs.a3S,nqcCoeffs.a4,nqcCoeffs.a5);
+      printf("%.16e %.16e %.16e %.16e\n",nqcCoeffs.b1,nqcCoeffs.b2,nqcCoeffs.b3,nqcCoeffs.b4);
+      printf("%.16e %.16e, %.16e %.16e\n\n",creal(hLM),cimag(hLM),creal(hNQC),cimag(hNQC));
+    }
+
+    /*hPlusTS->data->data[i]  = - 0.5 * amp * cos( 2.*vphi[i]) * cos(2.*alpha) * (1. + LNhz*LNhz)
+                            + amp * sin(2.*vphi[i]) * sin(2.*alpha)*LNhz;
+
+    hCrossTS->data->data[i] = - 0.5 * amp * cos( 2.*vphi[i]) * sin(2.*alpha) * (1. + LNhz*LNhz)
+                            - amp * sin(2.*vphi[i]) * cos(2.*alpha) * LNhz;*/
+
+  }
+  fclose( out );
+  printf("YP: quasi-nonprecessing modes generated.for High SR\n");
+
+  /* WaveStep 2.4.2: add quasi-nonprecessing spherical harmonic modes to the SphHarmTimeSeries structure */
+  hlmPTSHi = XLALSphHarmTimeSeriesAddMode( hlmPTSHi, h22TSHi, 2, 2 );
+  hlmPTSHi = XLALSphHarmTimeSeriesAddMode( hlmPTSHi, h21TSHi, 2, 1 );
+  hlmPTSHi = XLALSphHarmTimeSeriesAddMode( hlmPTSHi, h20TSHi, 2, 0 );
+  hlmPTSHi = XLALSphHarmTimeSeriesAddMode( hlmPTSHi, h2m1TSHi, 2, -1 );
+  hlmPTSHi = XLALSphHarmTimeSeriesAddMode( hlmPTSHi, h2m2TSHi, 2, -2 );
+  XLALSphHarmTimeSeriesSetTData( hlmPTSHi, tlistHi );
+
+  h22PTSHi  = XLALSphHarmTimeSeriesGetMode( hlmPTSHi, 2, 2 );
+  h21PTSHi  = XLALSphHarmTimeSeriesGetMode( hlmPTSHi, 2, 1 );
+  h20PTSHi  = XLALSphHarmTimeSeriesGetMode( hlmPTSHi, 2, 0 );
+  h2m1PTSHi = XLALSphHarmTimeSeriesGetMode( hlmPTSHi, 2, -1);
+  h2m2PTSHi = XLALSphHarmTimeSeriesGetMode( hlmPTSHi, 2, -2);
+  printf("YP: SphHarmTS structures populated for HIgh SR.\n");
+
+  out = fopen( "PWavesHi.dat", "w" );
+  for ( i = 0; i < retLen; i++ )
+  {
+    fprintf( out, "%.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e\n",
+             i*deltaTHigh/mTScaled, creal(h22PTSHi->data->data[i]), cimag(h22PTSHi->data->data[i]),
+                                creal(h21PTSHi->data->data[i]), cimag(h21PTSHi->data->data[i]),
+                                creal(h20PTSHi->data->data[i]), cimag(h20PTSHi->data->data[i]),
+                                creal(h2m1PTSHi->data->data[i]), cimag(h2m1PTSHi->data->data[i]),
+                                creal(h2m2PTSHi->data->data[i]), cimag(h2m2PTSHi->data->data[i]) );
+  }
+  fclose( out );
+  printf("YP: P-frame waveforms written to file for High SR.\n");
 
 
   /* WaveStep 3
