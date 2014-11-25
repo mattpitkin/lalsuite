@@ -2084,6 +2084,8 @@ if(importDynamicsAndGetDerivatives)
   values->data[9] = s2Vecx.data[hiSRndx];
   values->data[10]= s2Vecy.data[hiSRndx];
   values->data[11]= s2Vecz.data[hiSRndx];
+  values->data[12]= phiDMod.data[hiSRndx];
+  values->data[13]= phiMod.data[hiSRndx];
 
   fprintf( stderr, "Commencing high SR integration... \n" );
   for( i=0; i<12; i++)fprintf(stderr, "%.16e\n", values->data[i]);
