@@ -313,8 +313,15 @@ static INT4 XLALGenerateHybridWaveDerivatives (
   tlist[4] = tlist[3] + rt;
   tlist[5] = matchrange->data[1];
 
+  printf("Stas: range of comb: %.10e - %.10e \n", matchrange->data[0], matchrange->data[1]);
+  /*for (j=0; j<6; j++){
+      printf("Stas: attachment points are %.10e  \n", tlist[j]);
+  }*/ 
+
   /* Set the length of the interpolation vectors */
   vecLength = ( m * matchrange->data[2] / dt ) + 1;
+  /*printf("Stas: check sizes velLength -> %d, wave->length= %d \n", vecLength, wave->length);*/
+  vecLength = timeVec->length;
 
   /* Getting interpolation and derivatives of the waveform using gsl spline routine */
   /* Initiate arrays and supporting variables for gsl */
@@ -350,10 +357,11 @@ static INT4 XLALGenerateHybridWaveDerivatives (
     LALFree( y );
     XLAL_ERROR( XLAL_EFUNC );
   }
-
+  /*printf("Stas: Computing the derivatives -> ...\n");*/
   /* Getting first and second order time derivatives from gsl interpolations */
   for (j = 0; j < 6; ++j)
-  {
+  { 
+    /*printf("Stas: j= %d \n", j); */
     gslStatus = gsl_spline_eval_e( spline, tlist[j], acc, &ry );
     if ( gslStatus == GSL_SUCCESS )
     {
@@ -453,11 +461,23 @@ static INT4 XLALSimIMREOBHybridAttachRingdown(
       {
         XLAL_ERROR( XLAL_ENOMEM );
       }
-
       if ( XLALSimIMREOBGenerateQNMFreqV2( modefreqs, mass1, mass2, spin1, spin2, l, m, nmodes, approximant ) == XLAL_FAILURE )
       {
         XLALDestroyCOMPLEX16Vector( modefreqs );
         XLAL_ERROR( XLAL_EFUNC );
+      }
+      
+      if ( approximant == SEOBNRv3 ){
+         if ( XLALSimIMREOBGenerateQNMFreqV2( modefreqs, mass1, mass2, spin1, spin2, l, fabs(m), nmodes, approximant ) == XLAL_FAILURE )
+         {
+           XLALDestroyCOMPLEX16Vector( modefreqs );
+           XLAL_ERROR( XLAL_EFUNC );
+         }
+         if ( m<0){
+            for (j=0; j<nmodes; j++){
+                modefreqs->data[j] = conjl(-1.0*modefreqs->data[j]);
+            }
+         }
       }
 
       /* Call XLALSimIMREOBFinalMassSpin() to get mass and spin of the final black hole */
@@ -465,6 +485,7 @@ static INT4 XLALSimIMREOBHybridAttachRingdown(
       {
         XLAL_ERROR( XLAL_EFUNC );
       }
+      printf("Stas: done2 \n finalMass = %.10e, finalspin = %.10e\n", finalMass, finalSpin);
 
       if ( approximant == SEOBNRv1 )
       {
@@ -517,7 +538,7 @@ static INT4 XLALSimIMREOBHybridAttachRingdown(
       }
       for (j = 0; j < nmodes; j++)
       {
-        //printf("QNM frequencies: %d %d %d %e %e\n",l,m,j,creal(modefreqs->data[j])*mTot,1./cimag(modefreqs->data[j])/mTot);
+           printf("QNM frequencies: %d %d %d %e %e\n",l,m,j,creal(modefreqs->data[j])*mTot,1./cimag(modefreqs->data[j])/mTot);
       }
 
       /* Ringdown signal length: 10 times the decay time of the n=0 mode */
@@ -637,6 +658,9 @@ static INT4 XLALSimIMREOBHybridAttachRingdown(
 
       /* Generate full waveforms, by stitching inspiral and ring-down waveforms */
       UINT4 attachIdx = matchrange->data[1] * mTot / dt;
+
+      /*printf("Stas: test attachIdx = %d, timesteps: %.10e, %.10e \n", 
+              attachIdx, dt/mTot, timeVec->data[1]-timeVec->data[0]); */
       for (j = 1; j < Nrdwave; ++j)
       {
 	    signal1->data[j + attachIdx] = rdwave1->data[j];

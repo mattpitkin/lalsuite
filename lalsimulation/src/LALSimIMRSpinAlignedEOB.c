@@ -1252,6 +1252,8 @@ int XLALSimIMRSpinEOBWaveform(
   /* How far will we have to step back to attach the ringdown? */
   REAL8 tStepBack;
   INT4  nStepBack;
+  REAL8 HiSRstart;
+
 
   /* Dynamics and details of the high sample rate part used to attach the ringdown */
   UINT4 hiSRndx;
@@ -2069,7 +2071,9 @@ if(importDynamicsAndGetDerivatives)
   /* Set up the high sample rate integration */
   hiSRndx = retLen - nStepBack;
   deltaTHigh = deltaT / (REAL8)resampFac;
+  HiSRstart = tVec.data[hiSRndx];
 
+  printf("Stas: start HighSR at %.16e \n", HiSRstart);
   fprintf( stderr, "Stepping back %d points - we expect %d points at high SR\n", nStepBack, nStepBack*resampFac );
 
   values->data[0] = posVecx.data[hiSRndx];
@@ -2340,8 +2344,8 @@ if(importDynamicsAndGetDerivatives)
 	  {
 		  //omegaDeriv2 = omegaDeriv1;
 		  time2 = time1;
-		  time1 = dynamicsHi->data[peakIdx-1];
-		  peakIdx--;
+		  time1 = dynamicsHi->data[peakIdx-2];
+		  peakIdx = peakIdx-2;
 		  omegaDeriv1 = gsl_spline_eval_deriv( spline, time1, acc );
 	   }
 	   
@@ -2363,7 +2367,7 @@ if(importDynamicsAndGetDerivatives)
 	     }
 	     while ( time2 - time1 > 1.0e-5 );
       
-    if(debugPK)printf( "Estimation of the peak is now at time %.16e\n", tPeakOmega );
+    if(debugPK)printf( "Estimation of the peak is now at time %.16e, %.16e \n", tPeakOmega, tPeakOmega+HiSRstart);
   }
 
   /* WaveStep 1.2: calculate J at merger */
@@ -2419,7 +2423,14 @@ if(importDynamicsAndGetDerivatives)
   combSize    *= 1.0 + 9.0 * (1.0 - fabs(kappaJL));
   //longCombSize = combSize;
   deltaNQC    += 10.0 * (1.0 - fabs(kappaJL));
+  /** Stas: !!!!  FIXME hardcoding the info so far */
+  printf("\n Stas: !!!! FIXME: fixed combisize and DeltaNQC \n\n");
+  combSize = 14.0;
+  deltaNQC = 4.0;
   tAttach = tPeakOmega - deltaNQC;
+  if (debugPK)
+     printf("Stas: kappaJL = %.16e, combsize = %.16e, deltaNQC = %.16e, tAttach = %.16e \n", 
+         kappaJL, combSize, deltaNQC, tAttach); 
   /* WaveStep 1.4: calculate combsize and deltaNQC */
   switch ( SpinAlignedEOBversion )
   {
@@ -2617,7 +2628,7 @@ if(importDynamicsAndGetDerivatives)
 
     aI2P = atan2( LNhy, LNhx );
     bI2P = acos( LNhz );
-    gI2P = -phiMod.data[i];
+    gI2P = -phiMod.data[i]; /* + 16.8 */
     LframeEx[0] =  cos(aI2P)*cos(bI2P)*cos(gI2P) - sin(aI2P)*sin(gI2P);
     LframeEx[1] =  sin(aI2P)*cos(bI2P)*cos(gI2P) + cos(aI2P)*sin(gI2P);
     LframeEx[2] = -sin(bI2P)*cos(gI2P);
@@ -2638,12 +2649,13 @@ if (i==0||i==1900) printf("{{%f,%f,%f},{%f,%f,%f},{%f,%f,%f}}\n",LframeEx[0],Lfr
 if (i==0||i==1900) printf("YP: study time = %f\n",i*deltaT/mTScaled);
 if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+JframeEy[1]*LframeEz[1]+JframeEy[2]*LframeEz[2], JframeEx[0]*LframeEz[0]+JframeEx[1]*LframeEz[1]+JframeEx[2]*LframeEz[2], gP2J, atan2(-0.365446,-0.378524));
     /* I2P Euler angles are stored only for debugging purposes */
-    alphaI2PTS->data->data[i] = aI2P;
+    alphaI2PTS->data->data[i] = -aI2P;
      betaI2PTS->data->data[i] = bI2P;
-    gammaI2PTS->data->data[i] = gI2P;
-    alphaP2JTS->data->data[i] = -gP2J;
-     betaP2JTS->data->data[i] = 0.*LAL_PI/2.-bP2J;
-    gammaP2JTS->data->data[i] = -aP2J;
+    gammaI2PTS->data->data[i] = -gI2P;
+    alphaP2JTS->data->data[i] = -aP2J;
+    /*betaP2JTS->data->data[i] = 0.*LAL_PI/2.-bP2J;*/
+    betaP2JTS->data->data[i] = bP2J;
+    gammaP2JTS->data->data[i] = -gP2J;
 
     /* Calculate the value of the Hamiltonian */
     cartPosVec.data[0] = values->data[0];
@@ -2819,45 +2831,45 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
   retLen = retLenHi;
   
   SphHarmTimeSeries *hlmPTSHi = NULL;
-  //SphHarmTimeSeries *hIMRlmJTSHi = NULL;
-  REAL8TimeSeries UNUSED *hPlusTSHi  = XLALCreateREAL8TimeSeries( "H_PLUS", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  REAL8TimeSeries UNUSED *hCrossTSHi = XLALCreateREAL8TimeSeries( "H_CROSS", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  REAL8TimeSeries *alphaI2PTSHi = XLALCreateREAL8TimeSeries( "alphaI2P", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  REAL8TimeSeries  *betaI2PTSHi = XLALCreateREAL8TimeSeries(  "betaI2P", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  REAL8TimeSeries *gammaI2PTSHi = XLALCreateREAL8TimeSeries( "gammaI2P", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  REAL8TimeSeries *alphaP2JTSHi = XLALCreateREAL8TimeSeries( "alphaP2J", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  REAL8TimeSeries  *betaP2JTSHi = XLALCreateREAL8TimeSeries(  "betaP2J", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  REAL8TimeSeries *gammaP2JTSHi = XLALCreateREAL8TimeSeries( "gammaP2J", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
+  SphHarmTimeSeries *hIMRlmJTSHi = NULL;
+  REAL8TimeSeries UNUSED *hPlusTSHi  = XLALCreateREAL8TimeSeries( "H_PLUS", &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  REAL8TimeSeries UNUSED *hCrossTSHi = XLALCreateREAL8TimeSeries( "H_CROSS", &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  REAL8TimeSeries *alphaI2PTSHi = XLALCreateREAL8TimeSeries( "alphaI2P", &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  REAL8TimeSeries  *betaI2PTSHi = XLALCreateREAL8TimeSeries(  "betaI2P", &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  REAL8TimeSeries *gammaI2PTSHi = XLALCreateREAL8TimeSeries( "gammaI2P", &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  REAL8TimeSeries *alphaP2JTSHi = XLALCreateREAL8TimeSeries( "alphaP2J", &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  REAL8TimeSeries  *betaP2JTSHi = XLALCreateREAL8TimeSeries(  "betaP2J", &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  REAL8TimeSeries *gammaP2JTSHi = XLALCreateREAL8TimeSeries( "gammaP2J", &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
   REAL8Sequence *tlistHi        = NULL;
   REAL8Sequence *tlistRDPatchHi = NULL;
-  COMPLEX16TimeSeries *h22TSHi   = XLALCreateCOMPLEX16TimeSeries( "H_22",   &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *h21TSHi   = XLALCreateCOMPLEX16TimeSeries( "H_21",   &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *h20TSHi   = XLALCreateCOMPLEX16TimeSeries( "H_20",   &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *h2m1TSHi  = XLALCreateCOMPLEX16TimeSeries( "H_2m1",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *h2m2TSHi  = XLALCreateCOMPLEX16TimeSeries( "H_2m2",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *h22PTSHi  = XLALCreateCOMPLEX16TimeSeries( "HP_22",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *h21PTSHi  = XLALCreateCOMPLEX16TimeSeries( "HP_21",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *h20PTSHi  = XLALCreateCOMPLEX16TimeSeries( "HP_20",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *h2m1PTSHi = XLALCreateCOMPLEX16TimeSeries( "HP_2m1", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *h2m2PTSHi = XLALCreateCOMPLEX16TimeSeries( "HP_2m2", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  /*COMPLEX16TimeSeries *h22JTSHi  = XLALCreateCOMPLEX16TimeSeries( "HJ_22",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *h21JTSHi  = XLALCreateCOMPLEX16TimeSeries( "HJ_21",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *h20JTSHi  = XLALCreateCOMPLEX16TimeSeries( "HJ_20",  &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *h2m1JTSHi = XLALCreateCOMPLEX16TimeSeries( "HJ_2m1", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *h2m2JTSHi = XLALCreateCOMPLEX16TimeSeries( "HJ_2m2", &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *hJTSHi    = XLALCreateCOMPLEX16TimeSeries( "HJ",     &tc, 0.0, deltaT, &lalStrainUnit, retLen );
-  COMPLEX16TimeSeries *hIMR22JTS  = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_22",  &tc, 0.0, deltaT, &lalStrainUnit,
+  COMPLEX16TimeSeries *h22TSHi   = XLALCreateCOMPLEX16TimeSeries( "H_22",   &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h21TSHi   = XLALCreateCOMPLEX16TimeSeries( "H_21",   &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h20TSHi   = XLALCreateCOMPLEX16TimeSeries( "H_20",   &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h2m1TSHi  = XLALCreateCOMPLEX16TimeSeries( "H_2m1",  &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h2m2TSHi  = XLALCreateCOMPLEX16TimeSeries( "H_2m2",  &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h22PTSHi  = XLALCreateCOMPLEX16TimeSeries( "HP_22",  &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h21PTSHi  = XLALCreateCOMPLEX16TimeSeries( "HP_21",  &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h20PTSHi  = XLALCreateCOMPLEX16TimeSeries( "HP_20",  &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h2m1PTSHi = XLALCreateCOMPLEX16TimeSeries( "HP_2m1", &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h2m2PTSHi = XLALCreateCOMPLEX16TimeSeries( "HP_2m2", &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h22JTSHi  = XLALCreateCOMPLEX16TimeSeries( "HJ_22",  &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h21JTSHi  = XLALCreateCOMPLEX16TimeSeries( "HJ_21",  &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h20JTSHi  = XLALCreateCOMPLEX16TimeSeries( "HJ_20",  &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h2m1JTSHi = XLALCreateCOMPLEX16TimeSeries( "HJ_2m1", &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *h2m2JTSHi = XLALCreateCOMPLEX16TimeSeries( "HJ_2m2", &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *hJTSHi    = XLALCreateCOMPLEX16TimeSeries( "HJ",     &tc, 0.0, deltaTHigh, &lalStrainUnit, retLen );
+  COMPLEX16TimeSeries *hIMR22JTSHi  = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_22Hi",  &tc, 0.0, deltaTHigh, &lalStrainUnit,
                                                                    retLen + retLenRDPatch );
-  COMPLEX16TimeSeries *hIMR21JTS  = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_21",  &tc, 0.0, deltaT, &lalStrainUnit,
+  COMPLEX16TimeSeries *hIMR21JTSHi  = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_21Hi",  &tc, 0.0, deltaTHigh, &lalStrainUnit,
                                                                    retLen + retLenRDPatch );
-  COMPLEX16TimeSeries *hIMR20JTS  = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_20",  &tc, 0.0, deltaT, &lalStrainUnit,
+  COMPLEX16TimeSeries *hIMR20JTSHi  = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_20Hi",  &tc, 0.0, deltaTHigh, &lalStrainUnit,
                                                                    retLen + retLenRDPatch );
-  COMPLEX16TimeSeries *hIMR2m1JTS = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_2m1", &tc, 0.0, deltaT, &lalStrainUnit,
+  COMPLEX16TimeSeries *hIMR2m1JTSHi = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_2m1Hi", &tc, 0.0, deltaTHigh, &lalStrainUnit,
                                                                    retLen + retLenRDPatch );
-  COMPLEX16TimeSeries *hIMR2m2JTS = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_2m2", &tc, 0.0, deltaT, &lalStrainUnit,
+  COMPLEX16TimeSeries *hIMR2m2JTSHi = XLALCreateCOMPLEX16TimeSeries( "HIMRJ_2m2Hi", &tc, 0.0, deltaTHigh, &lalStrainUnit,
                                                                    retLen + retLenRDPatch );
-  COMPLEX16TimeSeries *hIMRJTS    = XLALCreateCOMPLEX16TimeSeries( "HIMRJ",     &tc, 0.0, deltaT, &lalStrainUnit,
-                                                                   retLen + retLenRDPatch );*/
+  COMPLEX16TimeSeries *hIMRJTSHi    = XLALCreateCOMPLEX16TimeSeries( "HIMRJHi",     &tc, 0.0, deltaTHigh, &lalStrainUnit,
+                                                                   retLen + retLenRDPatch );
   if ( !(tlistHi = XLALCreateREAL8Vector( retLen )) || !(tlistRDPatchHi = XLALCreateREAL8Vector( retLen + retLenRDPatch )) )
   {
     XLAL_ERROR(  XLAL_ENOMEM );
@@ -2919,7 +2931,7 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
 
     aI2P = atan2( LNhy, LNhx );
     bI2P = acos( LNhz );
-    gI2P = -phiModHi.data[i];
+    gI2P = -phiModHi.data[i]; /* + 16.8 + 0.6889 */
     LframeEx[0] =  cos(aI2P)*cos(bI2P)*cos(gI2P) - sin(aI2P)*sin(gI2P);
     LframeEx[1] =  sin(aI2P)*cos(bI2P)*cos(gI2P) + cos(aI2P)*sin(gI2P);
     LframeEx[2] = -sin(bI2P)*cos(gI2P);
@@ -2940,12 +2952,12 @@ if (i==0||i==1900) printf("{{%f,%f,%f},{%f,%f,%f},{%f,%f,%f}}\n",LframeEx[0],Lfr
 if (i==0||i==1900) printf("YP: study time = %f\n",i*deltaTHigh/mTScaled);
 if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+JframeEy[1]*LframeEz[1]+JframeEy[2]*LframeEz[2], JframeEx[0]*LframeEz[0]+JframeEx[1]*LframeEz[1]+JframeEx[2]*LframeEz[2], gP2J, atan2(-0.365446,-0.378524));
     /* I2P Euler angles are stored only for debugging purposes */
-    alphaI2PTSHi->data->data[i] = aI2P;
+    alphaI2PTSHi->data->data[i] = -aI2P;
      betaI2PTSHi->data->data[i] = bI2P;
-    gammaI2PTSHi->data->data[i] = gI2P;
-    alphaP2JTSHi->data->data[i] = -gP2J;
-     betaP2JTSHi->data->data[i] = 0.*LAL_PI/2.-bP2J;
-    gammaP2JTSHi->data->data[i] = -aP2J;
+    gammaI2PTSHi->data->data[i] = -gI2P;
+    alphaP2JTSHi->data->data[i] = -aP2J;
+     betaP2JTSHi->data->data[i] = bP2J;
+    gammaP2JTSHi->data->data[i] = -gP2J;
 
     /* Calculate the value of the Hamiltonian */
     cartPosVec.data[0] = values->data[0];
@@ -3048,7 +3060,7 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
     h2m2TSHi->data->data[i] = conjl(hLM);
 
     fprintf( out, "%.16e %.16e %.16e %.16e %.16e %.16e %.16e ",
-             i*deltaTHigh/mTScaled, aI2P, bI2P, gI2P, aP2J, bP2J, gP2J );
+             i*deltaTHigh/mTScaled + HiSRstart, aI2P, bI2P, gI2P, aP2J, bP2J, gP2J );
     fprintf( out, "%.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e\n",
              vX, vY, vZ, LNhx, LNhy, LNhz, creal(hLM), cimag(hLM) );
 
@@ -3102,7 +3114,7 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
   for ( i = 0; i < retLen; i++ )
   {
     fprintf( out, "%.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e\n",
-             i*deltaTHigh/mTScaled, creal(h22PTSHi->data->data[i]), cimag(h22PTSHi->data->data[i]),
+             i*deltaTHigh/mTScaled  + HiSRstart, creal(h22PTSHi->data->data[i]), cimag(h22PTSHi->data->data[i]),
                                 creal(h21PTSHi->data->data[i]), cimag(h21PTSHi->data->data[i]),
                                 creal(h20PTSHi->data->data[i]), cimag(h20PTSHi->data->data[i]),
                                 creal(h2m1PTSHi->data->data[i]), cimag(h2m1PTSHi->data->data[i]),
@@ -3111,6 +3123,7 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
   fclose( out );
   printf("YP: P-frame waveforms written to file for High SR.\n");
 
+  retLen = retLenLow;
 
   /* WaveStep 3
    * Generate IMR waveforms in the merger J (~ final spin) -frame
@@ -3139,10 +3152,37 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
   fclose( out );
   printf("YP: P-frame waveforms written to file.\n");
 
+  /* Stas: Rotating the high sampling part */
+
+  
+  if ( XLALSimInspiralPrecessionRotateModes( hlmPTSHi, alphaP2JTSHi, betaP2JTSHi, gammaP2JTSHi ) == XLAL_FAILURE )
+  {
+    XLAL_ERROR( XLAL_EFUNC );
+  }
+  h22JTSHi  = XLALSphHarmTimeSeriesGetMode( hlmPTSHi, 2, 2 );
+  h21JTSHi  = XLALSphHarmTimeSeriesGetMode( hlmPTSHi, 2, 1 );
+  h20JTSHi  = XLALSphHarmTimeSeriesGetMode( hlmPTSHi, 2, 0 );
+  h2m1JTSHi = XLALSphHarmTimeSeriesGetMode( hlmPTSHi, 2, -1);
+  h2m2JTSHi = XLALSphHarmTimeSeriesGetMode( hlmPTSHi, 2, -2);
+
+ out = fopen( "JWavesHi.dat", "w" );
+  for ( i = 0; i < retLenHi; i++ )
+  {
+    fprintf( out, "%.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e\n",
+             /*timeHi.data[i]+HiSRstart, creal(h22JTSHi->data->data[i]), cimag(h22JTSHi->data->data[i]),*/
+             timeHi.data[i], creal(h22JTSHi->data->data[i]), cimag(h22JTSHi->data->data[i]),
+                                creal(h21JTSHi->data->data[i]), cimag(h21JTSHi->data->data[i]),
+                                creal(h20JTSHi->data->data[i]), cimag(h20JTSHi->data->data[i]),
+                                creal(h2m1JTSHi->data->data[i]), cimag(h2m1JTSHi->data->data[i]),
+                                creal(h2m2JTSHi->data->data[i]), cimag(h2m2JTSHi->data->data[i]) );
+  }
+  fclose( out );
+  
+
   REAL8Vector *rdMatchPoint = XLALCreateREAL8Vector( 3 );
   //REAL8Vector *sigReHi = NULL, *sigImHi = NULL;
-  sigReHi  = XLALCreateREAL8Vector( retLen + retLenRDPatch );
-  sigImHi  = XLALCreateREAL8Vector( retLen + retLenRDPatch );
+  sigReHi  = XLALCreateREAL8Vector( retLenHi + retLenRDPatch );
+  sigImHi  = XLALCreateREAL8Vector( retLenHi + retLenRDPatch );
   if ( !sigReHi || !sigImHi || !rdMatchPoint )
   {
     XLAL_ERROR( XLAL_ENOMEM );
@@ -3152,14 +3192,65 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
   {
     XLALPrintError( "The comb size looks to be too big!!!\n" );
   }
+
   rdMatchPoint->data[0] = combSize < tAttach ? tAttach - combSize : 0;
   rdMatchPoint->data[1] = tAttach;
-  rdMatchPoint->data[2] = (retLen-1)*deltaT/mTScaled;
-  #if debugOutput
+  rdMatchPoint->data[2] = (retLenHi-1)*deltaTHigh/mTScaled;
   printf("YP::comb range: %f, %f\n",rdMatchPoint->data[0],rdMatchPoint->data[1]);
-  #endif
-  rdMatchPoint->data[0] -= fmod( rdMatchPoint->data[0], deltaT/mTScaled );
-  rdMatchPoint->data[1] -= fmod( rdMatchPoint->data[1], deltaT/mTScaled );
+  rdMatchPoint->data[0] -= fmod( rdMatchPoint->data[0], deltaTHigh/mTScaled );
+  rdMatchPoint->data[1] -= fmod( rdMatchPoint->data[1], deltaTHigh/mTScaled );
+  
+  /*** Stas Let's try to attach RD to 2,2 mode: ***/
+
+
+  for ( k = 2; k > -3; k-- )
+  {
+    hJTSHi  = XLALSphHarmTimeSeriesGetMode( hlmPTSHi, 2, k );
+    for ( i = 0; i < retLenHi; i++ )
+    {
+      sigReHi->data[i] = creal(hJTSHi->data->data[i]);
+      sigImHi->data[i] = cimag(hJTSHi->data->data[i]);
+    }
+    if ( XLALSimIMREOBHybridAttachRingdown( sigReHi, sigImHi, 2, k,
+                deltaTHigh, m1, m2, spin1[0], spin1[1], spin1[2], spin2[0], spin2[1], spin2[2],
+                &timeHi, rdMatchPoint, spinEOBApproximant )
+            == XLAL_FAILURE )
+    {
+      XLAL_ERROR( XLAL_EFUNC );
+    }
+
+    for ( i = 0; i < (int)sigReHi->length; i++ )
+    {
+      hIMRJTSHi->data->data[i] = (sigReHi->data[i]) + I * (sigImHi->data[i]);
+    }
+    hIMRlmJTSHi = XLALSphHarmTimeSeriesAddMode( hIMRlmJTSHi, hIMRJTSHi, 2, k );
+  }
+  XLALSphHarmTimeSeriesSetTData( hIMRlmJTSHi, tlistRDPatch );
+  printf("YP: J wave RD attachment done.\n");
+
+  hIMR22JTSHi  = XLALSphHarmTimeSeriesGetMode( hIMRlmJTSHi, 2, 2 );
+  hIMR21JTSHi  = XLALSphHarmTimeSeriesGetMode( hIMRlmJTSHi, 2, 1 );
+  hIMR20JTSHi  = XLALSphHarmTimeSeriesGetMode( hIMRlmJTSHi, 2, 0 );
+  hIMR2m1JTSHi = XLALSphHarmTimeSeriesGetMode( hIMRlmJTSHi, 2, -1);
+  hIMR2m2JTSHi = XLALSphHarmTimeSeriesGetMode( hIMRlmJTSHi, 2, -2);
+  out = fopen( "JIMRWavesHi.dat", "w" );
+  for ( i = 0; i < retLenHi + retLenRDPatch; i++ )
+  {
+    fprintf( out, "%.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e\n",
+             i*deltaTHigh/mTScaled, creal(hIMR22JTSHi->data->data[i]), cimag(hIMR22JTSHi->data->data[i]),
+                                creal(hIMR21JTSHi->data->data[i]), cimag(hIMR21JTSHi->data->data[i]),
+                                creal(hIMR20JTSHi->data->data[i]), cimag(hIMR20JTSHi->data->data[i]),
+                                creal(hIMR2m1JTSHi->data->data[i]), cimag(hIMR2m1JTSHi->data->data[i]),
+                                creal(hIMR2m2JTSHi->data->data[i]), cimag(hIMR2m2JTSHi->data->data[i]) );
+  }
+  fclose( out );
+  printf("YP: IMR J wave written to file.\n");
+  printf("Stas: Should be ok now\n");
+
+  exit(0);
+
+ /*** Stas: The rest of the code is not used right now ***/
+  abort();
 
 
   for ( k = 2; k > -3; k-- )
