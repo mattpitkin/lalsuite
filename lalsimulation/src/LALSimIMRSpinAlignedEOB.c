@@ -1708,7 +1708,7 @@ if(importDynamicsAndGetDerivatives)
 	  printf("a = %.12e, tplspin = %.12e, chiS = %.12e, chiA = %.12e\n", 
 			(double) a, (double) tplspin, (double) chiS, (double) chiA);
 	  printf("a is used to compute Hamiltonian coefficients,\n tplspin and chiS and chiA for the multipole coefficients\n");
-
+       
 	  printf("s1Vec = {%.12e,%.12e,%.12e}\n", (double) s1VecOverMtMt.data[0], 
 	  (double) s1VecOverMtMt.data[1], (double) s1VecOverMtMt.data[2]);
 	  printf("s2Vec = {%.12e,%.12e,%.12e}\n", (double) s2VecOverMtMt.data[0],
@@ -1988,6 +1988,15 @@ if(importDynamicsAndGetDerivatives)
 	  (double) s1VecOverMtMt.data[1], (double) s1VecOverMtMt.data[2]);
 	  printf("s2Vec = {%.12e,%.12e,%.12e}\n", (double) s2VecOverMtMt.data[0],
 	  (double) s2VecOverMtMt.data[1], (double) s2VecOverMtMt.data[2]);
+      
+      double StasS1 = sqrt(spin1[0]*spin1[0] + spin1[1]*spin1[1] +spin1[2]*spin1[2]);
+      double StasS2 = sqrt(spin2[0]*spin2[0] + spin2[1]*spin2[1] +spin2[2]*spin2[2]);
+      if (debugPK){
+              printf("Stas: amplitude of spin1 = %.16e, amplitude of spin2 = %.16e, theta1 = %.16e , theta2 = %.16e, phi1 = %.16e, phi2 = %.16e  \n", 
+              StasS1, StasS2, acos(spin1[2]/StasS1), acos(spin2[2]/StasS2), 
+              atan2(spin1[1], spin1[0]), atan2(spin2[1], spin2[0]) );
+      }
+
 
       fflush(NULL);
   } 
@@ -2431,6 +2440,7 @@ if(importDynamicsAndGetDerivatives)
   if (debugPK)
      printf("Stas: kappaJL = %.16e, combsize = %.16e, deltaNQC = %.16e, tAttach = %.16e \n", 
          kappaJL, combSize, deltaNQC, tAttach); 
+     printf("Stas: the EOBversion = %d\n", SpinAlignedEOBversion);
   /* WaveStep 1.4: calculate combsize and deltaNQC */
   switch ( SpinAlignedEOBversion )
   {
@@ -2462,6 +2472,11 @@ if(importDynamicsAndGetDerivatives)
        XLAL_ERROR( XLAL_EINVAL );
        break;
   }
+  printf("\n Stas: !!!! FIXME: fixed combisize and DeltaNQC \n\n");
+  combSize = 14.0;
+  deltaNQC = 4.0;
+  printf("Stas: Again-> kappaJL = %.16e, combsize = %.16e, deltaNQC = %.16e, tAttach = %.16e \n", 
+         kappaJL, combSize, deltaNQC, tAttach); 
 
   /* WaveStep 1.5: get  */
   // PK: This calculation has been moved above before omegaHi is allocated
@@ -2628,7 +2643,7 @@ if(importDynamicsAndGetDerivatives)
 
     aI2P = atan2( LNhy, LNhx );
     bI2P = acos( LNhz );
-    gI2P = -phiMod.data[i]; /* + 16.8 */
+    gI2P = -phiMod.data[i]; /*  + 16.8;  needed to compare with C++ */
     LframeEx[0] =  cos(aI2P)*cos(bI2P)*cos(gI2P) - sin(aI2P)*sin(gI2P);
     LframeEx[1] =  sin(aI2P)*cos(bI2P)*cos(gI2P) + cos(aI2P)*sin(gI2P);
     LframeEx[2] = -sin(bI2P)*cos(gI2P);
@@ -2931,7 +2946,7 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
 
     aI2P = atan2( LNhy, LNhx );
     bI2P = acos( LNhz );
-    gI2P = -phiModHi.data[i]; /* + 16.8 + 0.6889 */
+    gI2P = -phiModHi.data[i]; /*  + 16.8;  needed to compare with C++ */
     LframeEx[0] =  cos(aI2P)*cos(bI2P)*cos(gI2P) - sin(aI2P)*sin(gI2P);
     LframeEx[1] =  sin(aI2P)*cos(bI2P)*cos(gI2P) + cos(aI2P)*sin(gI2P);
     LframeEx[2] = -sin(bI2P)*cos(gI2P);
@@ -3165,7 +3180,7 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
   h2m1JTSHi = XLALSphHarmTimeSeriesGetMode( hlmPTSHi, 2, -1);
   h2m2JTSHi = XLALSphHarmTimeSeriesGetMode( hlmPTSHi, 2, -2);
 
- out = fopen( "JWavesHi.dat", "w" );
+  out = fopen( "JWavesHi.dat", "w" );
   for ( i = 0; i < retLenHi; i++ )
   {
     fprintf( out, "%.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e\n",
@@ -3193,10 +3208,12 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
     XLALPrintError( "The comb size looks to be too big!!!\n" );
   }
 
+  /*printf("Stas, something strange: tAttach=%.16e, combsize=%.16e\n", 
+         tAttach, combSize); */
   rdMatchPoint->data[0] = combSize < tAttach ? tAttach - combSize : 0;
   rdMatchPoint->data[1] = tAttach;
   rdMatchPoint->data[2] = (retLenHi-1)*deltaTHigh/mTScaled;
-  printf("YP::comb range: %f, %f\n",rdMatchPoint->data[0],rdMatchPoint->data[1]);
+  if (debugPK)  printf("YP::comb range: %f, %f\n",rdMatchPoint->data[0],rdMatchPoint->data[1]);
   rdMatchPoint->data[0] -= fmod( rdMatchPoint->data[0], deltaTHigh/mTScaled );
   rdMatchPoint->data[1] -= fmod( rdMatchPoint->data[1], deltaTHigh/mTScaled );
   

@@ -955,6 +955,8 @@ INT4 XLALSimIMREOBFinalMassSpin(
         swapvar = theta1; theta1 = theta2; theta2 = swapvar;
         swapvar = phi1;   phi1   = phi2;   phi2   = swapvar;
       }
+      /*printf("Stas: chi1 = %.10e, theta1 = %.10e, chi2 = %.10e, theta2= %.10e \n",
+              chi1, theta1, chi2, theta2);*/
       q2 = q * q;
       cosa = sin(theta1)*cos(phi1)*sin(theta2)*cos(phi2)
            + sin(theta1)*sin(phi1)*sin(theta2)*sin(phi2)
@@ -965,7 +967,7 @@ INT4 XLALSimIMREOBFinalMassSpin(
       a1a2L    = chi1*cosb+chi2*q2*cosg;
       lnorm    = 2.*sqrt(3.)+t2*eta+t3*eta*eta+s4/(1.+q2)/(1.+q2)*a1a2norm
                + (s5*eta+t0+2.)/(1.+q2) * a1a2L;
-      *finalMass = 1. + (0.9515 - 1.0)*4.*eta - 0.013*16.*eta2*(chi1+chi2);
+      *finalMass = 1. + (0.9515 - 1.0)*4.*eta - 0.013*16.*eta2*(chi1*cosb+chi2*cosg);
       *finalSpin = 1. / (1.+q) / (1.+q)
                * sqrt(a1a2norm +2.*a1a2L*lnorm*q+lnorm*lnorm*q2);
       //printf("final spin variables: %e, %e, %e, %e, %e, %e\n",chi1,chi2,theta1,theta2,phi1,phi2);

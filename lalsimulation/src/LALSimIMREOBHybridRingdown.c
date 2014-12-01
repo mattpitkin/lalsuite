@@ -100,13 +100,18 @@ static INT4 XLALSimIMREOBHybridRingdownWave(
 
   /* mass in geometric units */
   m  = (mass1 + mass2) * LAL_MTSUN_SI;
-  t5 = (matchrange->data[0] - matchrange->data[1]) * m;
+  t5 = (matchrange->data[0] - matchrange->data[1])* m;
   rt = -t5 / 5.;
 
   t4 = t5 + rt;
   t3 = t4 + rt;
   t2 = t3 + rt;
   t1 = t2 + rt;
+  
+  /*printf("Something is wrong: (0)-> %.16e, (1)-> %.16e, (0-1)->%.16e\n", 
+        matchrange->data[0], matchrange->data[1], matchrange->data[0] - matchrange->data[1]);
+  printf("Stas: timechecks t1=%.16e, t2=%.16e, t3=%.16e, t4=%.16e, t5=%.10e \n", 
+          t1/m, t2/m, t3/m, t4/m, t5/m);*/
   
   if ( inspwave1->length != 3 || inspwave2->length != 3 ||
 		modefreqs->length != nmodes )
@@ -186,22 +191,24 @@ static INT4 XLALSimIMREOBHybridRingdownWave(
   }
 
   #if 0
-  /* print ringdown-matching linear system: coefficient matrix and RHS vector */
+  /* print ringdown-matching linear system: coefficient matrix and RHS vector 
   printf("\nRingdown matching matrix:\n");
   for (i = 0; i < 16; ++i)
   {
+    printf("[");
     for (j = 0; j < 16; ++j)
     {
-      printf("%.12e ",gsl_matrix_get(coef,i,j));
+      printf("%.12e,  ",gsl_matrix_get(coef,i,j));
     }
-    printf("\n");
+    printf("]\n");
   }
   printf("RHS:  ");
+  printf("[");
   for (i = 0; i < 16; ++i)
   {
-    printf("%.12e   ",gsl_vector_get(hderivs,i));
+    printf("%.12e,   ",gsl_vector_get(hderivs,i));
   }
-  printf("\n");
+  printf("]\n");*/
   #endif
 
   /* Call gsl LU decomposition to solve the linear system */
@@ -231,11 +238,14 @@ static INT4 XLALSimIMREOBHybridRingdownWave(
     XLAL_ERROR( XLAL_ENOMEM );
   }
 
+  /*printf("Stas: solution:\n");*/
   for (i = 0; i < nmodes; ++i)
   {
 	modeamps->data[i] = gsl_vector_get(x, i);
 	modeamps->data[i + nmodes] = gsl_vector_get(x, i + nmodes);
+    /* printf(" %.16e,   %.16e,  ", gsl_vector_get(x, i), gsl_vector_get(x, i+nmodes)); */
   }
+  /*printf("\n");*/
 
   /* Free all gsl linear algebra objects */
   gsl_matrix_free(coef);
@@ -313,9 +323,9 @@ static INT4 XLALGenerateHybridWaveDerivatives (
   tlist[4] = tlist[3] + rt;
   tlist[5] = matchrange->data[1];
 
-  printf("Stas: range of comb: %.10e - %.10e \n", matchrange->data[0], matchrange->data[1]);
+  /*printf("Stas: range of comb: %.10e - %.10e \n", matchrange->data[0], matchrange->data[1]);*/
   /*for (j=0; j<6; j++){
-      printf("Stas: attachment points are %.10e  \n", tlist[j]);
+      printf("Stas: attachment points are %.10e  \n", tlist[j]+5.50372621772e4);
   }*/ 
 
   /* Set the length of the interpolation vectors */
@@ -446,6 +456,7 @@ static INT4 XLALSimIMREOBHybridAttachRingdown(
       REAL8 spin1[3] = { spin1x, spin1y, spin1z };
       REAL8 spin2[3] = { spin2x, spin2y, spin2z };
       REAL8 finalMass, finalSpin;
+      REAL8 chi1, chi2, theta1, theta2;
 
       mTot  = (mass1 + mass2) * LAL_MTSUN_SI;
       eta       = mass1 * mass2 / ( (mass1 + mass2) * (mass1 + mass2) );
@@ -536,10 +547,42 @@ static INT4 XLALSimIMREOBHybridAttachRingdown(
             matchrange->data[1] -= sh;
           }
       }
-      for (j = 0; j < nmodes; j++)
-      {
-           printf("QNM frequencies: %d %d %d %e %e\n",l,m,j,creal(modefreqs->data[j])*mTot,1./cimag(modefreqs->data[j])/mTot);
+      if (approximant == SEOBNRv3 )
+      {    
+          if (fabs(m) == 2 && l ==2){ 
+            chi1 = sqrt( spin1[0]*spin1[0] + spin1[1]*spin1[1] + spin1[2]*spin1[2] );
+            chi2 = sqrt( spin2[0]*spin2[0] + spin2[1]*spin2[1] + spin2[2]*spin2[2] );
+            if ( chi1 < 1.0e-15 )
+             { theta1 = 0.; }
+            else
+             { theta1 = acos( spin1[2] / chi1 ); }
+            if ( chi2 < 1.0e-15 )
+             { theta2 = 0.; }
+            else
+             { theta2 = acos( spin2[2] / chi2 ); }
+            chi1 = chi1 *cos(theta1);
+            chi2 = chi2 *cos(theta2);
+
+            a  = (chi1 + chi2) / 2. * (1.0 - 2.0 * eta) + (chi1 - chi2) / 2. * (mass1 - mass2) / (mass1 + mass2);
+            NRPeakOmega22 = GetNRSpinPeakOmega( l, m, eta, a ) / mTot;
+            /*Stas: somehow it makes thinigs worse */
+            /*modefreqs->data[7] = (NRPeakOmega22/finalMass + creal(modefreqs->data[0])) / 2.;       
+            modefreqs->data[7] += I * 10./3. * cimag(modefreqs->data[0]); */
+            if (m<0)
+              //modefreqs->data[7] = (-NRPeakOmega22/finalMass + creal(modefreqs->data[0])) / 2.;       
+              modefreqs->data[7] = (-NRPeakOmega22 + creal(modefreqs->data[0])) / 2.;       
+            else
+              modefreqs->data[7] = (NRPeakOmega22/finalMass + creal(modefreqs->data[0])) / 2.;
+            modefreqs->data[7] += I * 10./3. * cimag(modefreqs->data[0]);
+          }
+
       }
+
+
+      /*for (j = 0; j < nmodes; j++)
+      {
+           printf("Stas: QNM frequencies: %d %d %d %e %e\n",l,m,j,creal(modefreqs->data[j])*mTot,1./cimag(modefreqs->data[j])/mTot);
+      }*/
 
       /* Ringdown signal length: 10 times the decay time of the n=0 mode */
       Nrdwave = (INT4) (EOB_RD_EFOLDS / cimag(modefreqs->data[0]) / dt);
@@ -638,6 +681,8 @@ static INT4 XLALSimIMREOBHybridAttachRingdown(
        */
 
       /* Generate ring-down waveforms */
+      /*printf("Stas: before calling function: range is %.16e -> %.16e \n", 
+              matchrange->data[0], matchrange->data[1]);*/
       if ( XLALSimIMREOBHybridRingdownWave( rdwave1, rdwave2, dt, mass1, mass2, inspwaves1, inspwaves2,
 			  modefreqs, matchrange ) == XLAL_FAILURE )
       {
