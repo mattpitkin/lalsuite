@@ -1152,7 +1152,7 @@ int XLALSimIMRSpinEOBWaveform(
      )
 {
   int importDynamicsAndGetDerivatives = 0;
-  int debugPK = 0;
+  int debugPK = 1;
 
   INT4 i, k;
   UINT4 j;
@@ -1825,8 +1825,9 @@ if(importDynamicsAndGetDerivatives)
 
   REAL8 temp32;
   temp32 = fMin * inc; temp32 *= 2;
-
-  /*
+  REAL8Vector* tmpValues2 = NULL;
+  tmpValues2 = XLALCreateREAL8Vector( 14 );
+  
   if( debugPK )
   {
     printf("Calling the XLALSimIMRSpinEOBInitialConditions function!\n");
@@ -1837,7 +1838,14 @@ if(importDynamicsAndGetDerivatives)
                 	mSpin1, mSpin2, &seobParams ) == XLAL_FAILURE )
   {
     XLAL_ERROR( XLAL_EFUNC );
-  }*/
+  }
+  
+  if(debugPK)
+  {
+	  printf("Setting up initial conditions, returned values are:\n");
+	  for( j=0; j < tmpValues2->length; j++)
+		printf("%.16le\n", tmpValues2->data[j]);
+	}
   
   /* Assume that initial conditions are available at this point, to 
    * compute the chiS and chiA parameters. 
