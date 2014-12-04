@@ -11,7 +11,6 @@
 #include "LALSimIMRSpinEOB.h"
 #include "LALSimIMRSpinEOBHamiltonian.c"
 #include "LALSimIMRSpinEOBHcapNumericalDerivative.c"
-#include "LALSimIMRSpinEOBFactorizedWaveformCoefficients.c"
 #include "LALSimIMREOBFactorizedWaveform.c"
 
 #ifndef _LALSIMIMRSPINEOBINITIALCONDITIONS_C
@@ -296,7 +295,7 @@ XLALFindSphericalOrbit( const gsl_vector *x, /**<< Parameters requested by gsl r
   /* Numerical derivative of Hamiltonian wrt given value */
   REAL8 dHdx, dHdpy, dHdpz;
   REAL8 dHdr, dHdptheta, dHdpphi;
- 
+
   /* Populate the appropriate values */
   /* In the special theta=pi/2 phi=0 case, r is x */
   rootParams->values[0] = r  = gsl_vector_get( x, 0 );
@@ -515,6 +514,15 @@ static int XLALSimIMRSpinEOBInitialConditions(
   }
 #endif
 
+ int debugPK = 1;
+ if( debugPK )
+  {
+    printf("Inside the XLALSimIMRSpinEOBInitialConditions function!\n");
+    printf("Inputs: m1 = %.16e, m2 = %.16e, fMin = %.16e, inclination = %.16e\n", mass1, mass2, (double) fMin, (double) inc );
+    printf("Inputs: mSpin1 = {%.16e, %.16e, %.16e}\n",  spin1[0], spin1[1], spin1[2]);
+    printf("Inputs: mSpin2 = {%.16e, %.16e, %.16e}\n",  spin2[0], spin2[1], spin2[2]);
+    fflush(NULL);
+  }
 
   static const int UNUSED lMax = 8;
 
@@ -522,7 +530,7 @@ static int XLALSimIMRSpinEOBInitialConditions(
 
   /* Variable to keep track of whether the user requested the tortoise */
   int tmpTortoise;
-  
+
   UINT4 SpinAlignedEOBversion;
 
   REAL8 mTotal;
@@ -591,10 +599,13 @@ static int XLALSimIMRSpinEOBInitialConditions(
      tmpS1Norm[i] /= mTotal * mTotal;
      tmpS2Norm[i] /= mTotal * mTotal;
   }
-  SpinAlignedEOBversion = params->seobCoeffs->SpinAlignedEOBversion;  
+  SpinAlignedEOBversion = params->seobCoeffs->SpinAlignedEOBversion;
   /* We compute the ICs for the non-tortoise p, and convert at the end */
   tmpTortoise      = params->tortoise;
   params->tortoise = 0;
+
+  EOBNonQCCoeffs *nqcCoeffs = NULL;
+  nqcCoeffs = params->nqcCoeffs;
 
   /* STEP 1) Rotate to LNhat0 along z-axis and N0 along x-axis frame, where LNhat0 and N0 are initial normal to 
    *         orbital plane and initial orbital separation;
@@ -663,7 +674,7 @@ static int XLALSimIMRSpinEOBInitialConditions(
   ApplyRotationMatrix( rotMatrix, tmpS2 );
   ApplyRotationMatrix( rotMatrix, tmpS1Norm );
   ApplyRotationMatrix( rotMatrix, tmpS2Norm );
- 
+
   /* XXX Test code XXX */
   /*printf( "\nAfter applying rotation matrix:\n\n" );
   for ( i = 0; i < 3; i++ )
@@ -809,7 +820,7 @@ static int XLALSimIMRSpinEOBInitialConditions(
   ApplyRotationMatrix( rotMatrix2, tmpS2Norm );
   ApplyRotationMatrix( rotMatrix2, qCart );
   ApplyRotationMatrix( rotMatrix2, pCart );
- 
+
   /* STEP 4) In the L0-N0 frame, we calculate (dE/dr)|sph using Eq. (4.14), then initial dr/dt using Eq. (4.10),
    *         and finally pr0 using Eq. (4.15).
    */
@@ -850,7 +861,7 @@ static int XLALSimIMRSpinEOBInitialConditions(
     s2VecNorm.data = tmpS2Norm;
     sKerr.data = sKerrData;
     sStar.data = sStarData;
- 
+
     qCartVec.length = pCartVec.length = 3;
     qCartVec.data   = qCart;
     pCartVec.data   = pCart;
@@ -875,8 +886,8 @@ static int XLALSimIMRSpinEOBInitialConditions(
     //printf( "hamiltonian at this point is %.16e\n", ham );
 
     /* And now, finally, the flux */
-    REAL8Vector polarDynamics;
-    REAL8       polarData[4];
+    REAL8Vector polarDynamics, cartDynamics;
+    REAL8       polarData[4], cartData[12];
 
     polarDynamics.length = 4;
     polarDynamics.data = polarData;
@@ -886,7 +897,15 @@ static int XLALSimIMRSpinEOBInitialConditions(
     polarData[2] = pSph[0];
     polarData[3] = pSph[2];
 
-    flux  = XLALInspiralSpinFactorizedFlux( &polarDynamics, omega, params, ham, lMax, SpinAlignedEOBversion );
+    cartDynamics.length = 12;
+    cartDynamics.data = cartData;
+    
+    memcpy( cartData, qCart, 3*sizeof(REAL8) );
+    memcpy( cartData+3, pCart, 3*sizeof(REAL8) );
+    memcpy( cartData+6, tmpS1Norm, 3*sizeof(REAL8) );
+    memcpy( cartData+9, tmpS2Norm, 3*sizeof(REAL8) );
+    
+    flux  = XLALInspiralPrecSpinFactorizedFlux( &polarDynamics, &cartDynamics, nqcCoeffs, omega, params, ham, lMax, SpinAlignedEOBversion );
     flux  = flux / eta;
 
     rDot  = - flux / dEdr;
@@ -938,7 +957,7 @@ static int XLALSimIMRSpinEOBInitialConditions(
   ApplyRotationMatrix( invMatrix, tmpS2Norm );
   ApplyRotationMatrix( invMatrix, qCart );
   ApplyRotationMatrix( invMatrix, pCart );
- 
+
   /* If required, apply the tortoise transform */
   if ( tmpTortoise )
   {
@@ -964,7 +983,7 @@ static int XLALSimIMRSpinEOBInitialConditions(
   memcpy( initConds->data+3, pCart, sizeof(pCart) );
   memcpy( initConds->data+6, tmpS1Norm, sizeof(tmpS1Norm) );
   memcpy( initConds->data+9, tmpS2Norm, sizeof(tmpS2Norm) );
- 
+
   //printf( "THE FINAL INITIAL CONDITIONS:\n");
   /*printf( " %.16e %.16e %.16e\n%.16e %.16e %.16e\n%.16e %.16e %.16e\n%.16e %.16e %.16e\n", initConds->data[0], initConds->data[1], initConds->data[2],
           initConds->data[3], initConds->data[4], initConds->data[5], initConds->data[6], initConds->data[7], initConds->data[8],
