@@ -80,7 +80,7 @@ static REAL8 XLALSpinHcapNumDerivWRTParam(
                        const INT4 paramIdx,
                        const REAL8 values[],
                        SpinEOBParams *params
-                       );
+                       ) UNUSED;
 
 
 /*------------------------------------------------------------------------------------------

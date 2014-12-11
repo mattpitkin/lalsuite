@@ -894,7 +894,23 @@ static int XLALSimIMRSpinEOBInitialConditions(
 
   if(debugPK)printf( "d2Hdr2 = %.16e, d2Hdrdpphi = %.16e\n", d2Hdr2, d2Hdrdpphi );
 
-  dHdpphi  = XLALSpinHcapNumDerivWRTParam( 4, cartValues, params ) / sphValues[0];
+  //for( i=0; i<12; i++)printf("cartValues[%d] = %e\n", i, cartValues[i]);
+  /* New code to compute derivatives w.r.t. cartesian variables */
+  REAL8 tmpDValues[14];
+  int UNUSED status;
+  for( i =0; i < 3; i ++)
+  {
+		cartValues[i+6] /= mTotal * mTotal;
+		cartValues[i+9] /= mTotal * mTotal;
+	}
+  status  = XLALSpinHcapNumericalDerivativeNoFlux( 0, cartValues, tmpDValues, params );
+  for( i =0; i < 3; i ++)
+  {
+		cartValues[i+6] *= mTotal * mTotal;
+		cartValues[i+9] *= mTotal * mTotal;
+	}  
+	
+	dHdpphi  = tmpDValues[1]; //XLALSpinHcapNumDerivWRTParam( 4, cartValues, params ) / sphValues[0];
   
   dEdr  = - dHdpphi * d2Hdr2 / d2Hdrdpphi;
 
@@ -918,7 +934,7 @@ static int XLALSimIMRSpinEOBInitialConditions(
     //chi1 = tmpS1[0]*LnHat[0] + tmpS1[1]*LnHat[1] + tmpS1[2]*LnHat[2];
     //chi2 = tmpS2[0]*LnHat[0] + tmpS2[1]*LnHat[1] + tmpS2[2]*LnHat[2];
 
-    //printf( "magS1 = %.16e, magS2 = %.16e\n", chi1, chi2 );
+    //if(debugPK)printf( "magS1 = %.16e, magS2 = %.16e\n", chi1, chi2 );
 
     //chiS = 0.5 * ( chi1 / (mass1*mass1) + chi2 / (mass2*mass2) );
     //chiA = 0.5 * ( chi1 / (mass1*mass1) - chi2 / (mass2*mass2) );
@@ -932,7 +948,7 @@ static int XLALSimIMRSpinEOBInitialConditions(
     //XLALSimIMRCalculateSpinEOBHCoeffs( params->seobCoeffs, eta, a );
     ham = XLALSimIMRSpinEOBHamiltonian( eta, &qCartVec, &pCartVec, &s1VecNorm, &s2VecNorm, &sKerr, &sStar, params->tortoise, params->seobCoeffs );
 
-    //printf( "hamiltonian at this point is %.16e\n", ham );
+    if(debugPK)printf( "hamiltonian at this point is %.16e\n", ham );
 
     /* And now, finally, the flux */
     REAL8Vector polarDynamics, cartDynamics;
@@ -961,11 +977,24 @@ static int XLALSimIMRSpinEOBInitialConditions(
 
     /* We now need dHdpr - we take it that it is safely linear up to a pr of 1.0e-3 */
     cartValues[3] = 1.0e-3;
-    dHdpr         = XLALSpinHcapNumDerivWRTParam( 3, cartValues, params );
+    for( i =0; i < 3; i ++)
+    {
+		  cartValues[i+6] /= mTotal * mTotal;
+	  	cartValues[i+9] /= mTotal * mTotal;
+	  }
+    status  = XLALSpinHcapNumericalDerivativeNoFlux( 0, cartValues, tmpDValues, params );
+    for( i =0; i < 3; i ++)
+    {
+		  cartValues[i+6] *= mTotal * mTotal;
+	  	cartValues[i+9] *= mTotal * mTotal;
+	  }  
+    dHdpr         = tmpDValues[0]; //XLALSpinHcapNumDerivWRTParam( 3, cartValues, params );
 
 
-    /*printf( "Ingredients going into prDot:\n" );
-    printf( "flux = %.16e, dEdr = %.16e, dHdpr = %.16e\n", flux, dEdr, dHdpr );*/
+    if(debugPK){
+			printf( "Ingredients going into prDot:\n" );
+			printf( "flux = %.16e, dEdr = %.16e, dHdpr = %.16e\n", flux, dEdr, dHdpr );
+		}
 
     /* We can now calculate what pr should be taking into account the flux */
     pSph[0] = rDot / (dHdpr / cartValues[3] );
