@@ -375,7 +375,8 @@ static double GSLSpinHamiltonianDerivWrapper( double x,    /**<< Derivative at x
 {
 
   HcapSphDeriv2Params *dParams = (HcapSphDeriv2Params *) params;
-
+  REAL8 mTotal = dParams->params->eobParams->m1 + dParams->params->eobParams->m2;
+  
   REAL8 sphValues[12];
   REAL8 cartValues[12];
 
@@ -392,14 +393,29 @@ static double GSLSpinHamiltonianDerivWrapper( double x,    /**<< Derivative at x
   ptheta = sphValues[4];
   pphi   = sphValues[5];
 
+  /* New code to compute derivatives w.r.t. cartesian variables */
+  REAL8 tmpDValues[14];
+  int UNUSED status;
+  for( int i =0; i < 3; i ++)
+  {
+		cartValues[i+6] /= mTotal * mTotal;
+		cartValues[i+9] /= mTotal * mTotal;
+	}
+  status  = XLALSpinHcapNumericalDerivativeNoFlux( 0, cartValues, tmpDValues, dParams->params );
+  for( int i =0; i < 3; i ++)
+  {
+		cartValues[i+6] *= mTotal * mTotal;
+		cartValues[i+9] *= mTotal * mTotal;
+	}  
+
   /* Return the appropriate derivative according to varyParam2 */
   switch ( dParams->varyParam2 )
   {
     case 0:
       /* dHdr */
-      dHdx  = XLALSpinHcapNumDerivWRTParam( 0, cartValues, dParams->params );
-      dHdpy = XLALSpinHcapNumDerivWRTParam( 4, cartValues, dParams->params );
-      dHdpz = XLALSpinHcapNumDerivWRTParam( 5, cartValues, dParams->params );
+      dHdx  = -tmpDValues[3]; //XLALSpinHcapNumDerivWRTParam( 0, cartValues, dParams->params );
+      dHdpy = tmpDValues[1]; //XLALSpinHcapNumDerivWRTParam( 4, cartValues, dParams->params );
+      dHdpz = tmpDValues[2]; //XLALSpinHcapNumDerivWRTParam( 5, cartValues, dParams->params );
 
       dHdr      = dHdx - dHdpy * pphi / (r*r) + dHdpz * ptheta / (r*r);
       //printf( "dHdr = %.16e\n", dHdr );
@@ -408,12 +424,12 @@ static double GSLSpinHamiltonianDerivWrapper( double x,    /**<< Derivative at x
       break;
     case 4:
       /* dHdptheta */
-      dHdpz = XLALSpinHcapNumDerivWRTParam( 5, cartValues, dParams->params );
+      dHdpz = tmpDValues[2]; //XLALSpinHcapNumDerivWRTParam( 5, cartValues, dParams->params );
       return - dHdpz / r;
       break;
     case 5:
       /* dHdpphi */
-      dHdpy = XLALSpinHcapNumDerivWRTParam( 4, cartValues, dParams->params );
+      dHdpy = tmpDValues[1]; //XLALSpinHcapNumDerivWRTParam( 4, cartValues, dParams->params );
       return dHdpy / r;
       break;
     default:
