@@ -1851,6 +1851,25 @@ if(importDynamicsAndGetDerivatives)
 		printf("%.16le\n", tmpValues2->data[j]);
 	}
   
+  
+#if 1
+if(debugPK)
+  printf("Overwriting initial conditions\n");
+
+  values->data[0] = 2.5000000000000000e+01;
+  values->data[1] = -2.7380429870100001e-23;
+  values->data[2] = -2.8953132596299999e-19;
+  values->data[3] = -1.1854855421800000e-04;
+  values->data[4] = 2.1180585973900001e-01;
+  values->data[5] = -4.0060159474199999e-05;
+  values->data[6] = -4.1225633554699997e-01 * (mTotal/m1) * (mTotal/m1) * 0;
+  values->data[7] = -3.3047541974700001e-01 * (mTotal/m1) * (mTotal/m1) * 0;
+  values->data[8] = 1.7167610798600000e-01 * (mTotal/m1) * (mTotal/m1);
+  values->data[9] = 1.3483616572900000e-02 * (mTotal/m2) * (mTotal/m2) * 0;
+  values->data[10] = 2.1175823681400000e-22 * (mTotal/m2) * (mTotal/m2) * 0;
+  values->data[11] = 9.7964208715400000e-03 * (mTotal/m2) * (mTotal/m2);
+#endif
+
   /* Assume that initial conditions are available at this point, to 
    * compute the chiS and chiA parameters. 
    * Calculate the values of chiS and chiA, as given in Eq.16 of 
@@ -2166,6 +2185,76 @@ if(importDynamicsAndGetDerivatives)
   }
   fclose( out );
 
+  /*
+   * STEP 4) Interpolate trajectories to compute L_N (t) in order to get alpha (t) and beta (t)
+   */
+   fprintf( stderr, "Generating Alpha and Beta angle timeseries at low SR\n" );
+
+  REAL8 tmpR[3], tmpRdot[3], magLN = 0;
+  INT4 phaseCounterA = 0, phaseCounterB = 0;
+  
+  REAL8Vector *LN_x = NULL; REAL8Vector *LN_y = NULL; REAL8Vector *LN_z = NULL;
+  LN_x = XLALCreateREAL8Vector( retLenLow );
+  LN_y = XLALCreateREAL8Vector( retLenLow );
+  LN_z = XLALCreateREAL8Vector( retLenLow );
+  
+  REAL8Vector *Alpha = NULL; REAL8Vector *Beta = NULL;
+  Alpha = XLALCreateREAL8Vector( retLenLow );
+  Beta   = XLALCreateREAL8Vector( retLenLow );
+  
+  gsl_spline *x_spline = gsl_spline_alloc( gsl_interp_cspline, retLenLow );
+  gsl_spline *y_spline = gsl_spline_alloc( gsl_interp_cspline, retLenLow );
+  gsl_spline *z_spline = gsl_spline_alloc( gsl_interp_cspline, retLenLow );
+  
+  gsl_interp_accel *x_acc    = gsl_interp_accel_alloc();
+  gsl_interp_accel *y_acc    = gsl_interp_accel_alloc();
+  gsl_interp_accel *z_acc    = gsl_interp_accel_alloc();
+  
+  gsl_spline_init( x_spline, tVec.data, posVecx.data, retLenLow );
+  gsl_spline_init( y_spline, tVec.data, posVecy.data, retLenLow );
+  gsl_spline_init( z_spline, tVec.data, posVecz.data, retLenLow );
+  
+  for( i=0; i < retLenLow; i++ )
+  {
+		/* */
+		tmpR[0] = posVecx.data[i]; tmpR[1] = posVecy.data[i]; tmpR[2] = posVecz.data[i];
+		tmpRdot[0] = gsl_spline_eval_deriv( x_spline, tVec.data[i], x_acc );
+		tmpRdot[1] = gsl_spline_eval_deriv( y_spline, tVec.data[i], y_acc );
+		tmpRdot[2] = gsl_spline_eval_deriv( z_spline, tVec.data[i], z_acc );
+		
+		LN_x->data[i] = tmpR[1] * tmpRdot[2] - tmpR[2] * tmpRdot[1];
+		LN_y->data[i] = tmpR[2] * tmpRdot[0] - tmpR[0] * tmpRdot[2];
+		LN_z->data[i] = tmpR[0] * tmpRdot[1] - tmpR[1] * tmpRdot[0];
+		
+		magLN = sqrt(LN_x->data[i] * LN_x->data[i] + LN_y->data[i] * LN_y->data[i] + LN_z->data[i] * LN_z->data[i]);
+		LN_x->data[i] /= magLN; LN_y->data[i] /= magLN; LN_z->data[i] /= magLN;
+		
+		/* Unwrap the two angles */
+		Alpha->data[i] = atan2( LN_y->data[i], LN_x->data[i] ) + phaseCounterA * LAL_TWOPI;
+		if( i && Alpha->data[i] > Alpha->data[i-1] )
+		{
+			phaseCounterA--; 
+			Alpha->data[i] -= LAL_TWOPI;
+		}
+		
+		Beta->data[i] = acos( LN_z->data[i] ) + phaseCounterB * LAL_TWOPI;
+		if( i && Beta->data[i] > Beta->data[i-1] )
+		{
+			phaseCounterB--;
+			Beta->data[i] -= LAL_TWOPI;
+		}
+		
+	}
+	
+  fprintf( stderr, "WRiting Alpha and Beta angle timeseries at low SR to alphaANDbeta.dat\n" );
+  out = fopen( "alphaANDbeta.dat","w");
+  for(i = 0; i < retLenLow; i++)
+  {
+		/* */
+		fprintf( out, "%.16e %.16e %.16e\n", tVec.data[i], Alpha->data[i], Beta->data[i] );
+	}
+  fclose(out);
+  
   /* WaveStep 1.5: moved to here  */
   modefreqVec.length = 1;
   modefreqVec.data   = &modeFreq;
@@ -2195,59 +2284,7 @@ if(importDynamicsAndGetDerivatives)
   memset( sigReHi->data, 0, sigReHi->length * sizeof( sigReHi->data[0] ));
   memset( sigImHi->data, 0, sigImHi->length * sizeof( sigImHi->data[0] ));
 
-  /* Populate the high SR waveform */ 
-  // TO be done properly
-#if 0
-  REAL8 omegaOld = 0.0;
-  INT4  phaseCounter = 0;
-  for ( i = 0; i < retLen; i++ )
-  {
-    values->data[0] = rHi.data[i];
-    values->data[1] = phiHi.data[i];
-    values->data[2] = prHi.data[i];
-    values->data[3] = pPhiHi.data[i];
-
-    omegaHi->data[i] = omega = XLALSimIMRSpinAlignedEOBCalcOmega( values->data, &seobParams );
-    v = cbrt( omega );
-
-    /* Calculate the value of the Hamiltonian */
-    cartPosVec.data[0] = values->data[0];
-    cartMomVec.data[0] = values->data[2];
-    cartMomVec.data[1] = values->data[3] / values->data[0];
-
-    ham = XLALSimIMRSpinEOBHamiltonian( eta, &cartPosVec, &cartMomVec, &s1VecOverMtMt, &s2VecOverMtMt, sigmaKerr, sigmaStar, seobParams.tortoise, &seobCoeffs );
-
-    if ( XLALSimIMRSpinEOBGetSpinFactorizedWaveform( &hLM, values, v, ham, 2, 2, &seobParams )
-           == XLAL_FAILURE )
-    {
-      /* TODO: Clean-up */
-      XLAL_ERROR( XLAL_EFUNC );
-    }
-
-    ampNQC->data[i]  = cabs( hLM );
-    sigReHi->data[i] = (REAL4)(amp0 * creal(hLM));
-    sigImHi->data[i] = (REAL4)(amp0 * cimag(hLM));
-    phaseNQC->data[i]= carg( hLM ) + phaseCounter * LAL_TWOPI;
-
-    if ( i && phaseNQC->data[i] > phaseNQC->data[i-1] )
-    {
-      phaseCounter--;
-      phaseNQC->data[i] -= LAL_TWOPI;
-    }
-
-    if ( omega <= omegaOld && !peakIdx )
-    {
-      //printf( "Have we got the peak? omegaOld = %.16e, omega = %.16e\n", omegaOld, omega );
-      peakIdx = i;
-    }
-    omegaOld = omega;
-  }
-  //printf( "We now think the peak is at %d\n", peakIdx );
-  finalIdx = retLen - 1;
-#endif
-
-
-  /*
+   /*
    * STEP 5) Calculate NQC correction using hi-sampling data
    */
 
@@ -2275,7 +2312,7 @@ if(importDynamicsAndGetDerivatives)
 
   REAL8 tPeakOmega, tAttach, combSize, /*longCombSize,*/ deltaNQC;
   REAL8 UNUSED vX, vY, vZ, rCrossV_x, rCrossV_y, rCrossV_z, vOmega, omegasav, omegasav2;
-  REAL8 magR, Lx, Ly, Lz, magL, LNhx, LNhy, LNhz, magLN, Jx, Jy, Jz, magJ;
+  REAL8 magR, Lx, Ly, Lz, magL, LNhx, LNhy, LNhz, /*magLN,*/ Jx, Jy, Jz, magJ;
   REAL8 aI2P, bI2P, gI2P, aP2J, bP2J, gP2J;
   REAL8 chi1J, chi2J, chiJ, kappaJL;
   REAL8 JframeEx[3], JframeEy[3], JframeEz[3];
