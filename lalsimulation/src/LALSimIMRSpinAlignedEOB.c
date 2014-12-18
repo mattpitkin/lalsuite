@@ -50,6 +50,7 @@
 #include <lal/LALAdaptiveRungeKutta4.h>
 #include <lal/SphericalHarmonics.h>
 #include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_integration.h>
 
 #include "LALSimIMREOBNRv2.h"
 #include "LALSimIMRSpinEOB.h"
@@ -74,6 +75,18 @@
 #else
 #define UNUSED
 #endif
+
+static double f_alphadotcosi( double x, void * inparams )
+{
+	PrecEulerAnglesIntegration* params = (PrecEulerAnglesIntegration*) inparams;
+	
+	REAL8 alphadot = gsl_spline_eval_deriv( params->alpha_spline, x, params->alpha_acc );
+	REAL8 beta = gsl_spline_eval( params->beta_spline, x, params->beta_acc );
+	
+	return -1. * alphadot * cos(beta);	
+	
+}
+
 
 UNUSED static int
 XLALEOBSpinStopCondition(double UNUSED t,
@@ -2200,10 +2213,8 @@ if( !NoComputeInitialConditions )
  
   fprintf( stderr, "WRiting Alpha and Beta angle timeseries at low SR to alphaANDbeta.dat\n" );
   out = fopen( "alphaANDbeta.dat","w");
- 
   for( i=0; i < retLenLow; i++ )
   {
-		/* */
 		tmpR[0] = posVecx.data[i]; tmpR[1] = posVecy.data[i]; tmpR[2] = posVecz.data[i];
 		tmpRdot[0] = gsl_spline_eval_deriv( x_spline, tVec.data[i], x_acc );
 		tmpRdot[1] = gsl_spline_eval_deriv( y_spline, tVec.data[i], y_acc );
@@ -2240,11 +2251,58 @@ if( !NoComputeInitialConditions )
 		    Alpha->data[i], Beta->data[i], 
 				phaseCounterA, phaseCounterB, tmpR[0], tmpR[1], tmpR[2], tmpRdot[0], tmpRdot[1], tmpRdot[2],
 				LN_x->data[i], LN_y->data[i], LN_z->data[i] );
-		
 	}
-	
   fclose(out);
+
+  /* Integrate \dot{\alpha} \cos{\beta} to get the final Euler angle*/
+  x_spline = gsl_spline_alloc( gsl_interp_cspline, retLenLow );
+  x_acc = gsl_interp_accel_alloc();  
+  gsl_spline_init( x_spline, tVec.data, Alpha->data, retLenLow );
   
+  y_spline = gsl_spline_alloc( gsl_interp_cspline, retLenLow );
+  y_acc = gsl_interp_accel_alloc();
+  gsl_spline_init( y_spline, tVec.data, Beta->data, retLenLow );
+  
+  REAL8Vector *Gamma = NULL;
+  Gamma = XLALCreateREAL8Vector( retLenLow );
+
+  PrecEulerAnglesIntegration precEulerparams;
+  precEulerparams.alpha_spline = x_spline;
+  precEulerparams.alpha_acc       = x_acc;
+  precEulerparams.beta_spline   = y_spline;
+  precEulerparams.beta_acc         = y_acc;
+   
+   gsl_integration_workspace * precEulerw = gsl_integration_workspace_alloc (1000);
+   REAL8 precEulerresult = 0, precEulererror = 0;
+   
+   gsl_function precEulerF;
+   precEulerF.function = &f_alphadotcosi;
+   precEulerF.params = &precEulerparams;
+   
+   fprintf( stderr, "WRiting Gamma angle timeseries at low SR to gamma.dat\n" );
+   out = fopen( "gamma.dat","w");  
+   for( i = 0; i < retLenLow; i++ )
+   {
+		 if( i==0 )
+		   { Gamma->data[i] = 0.; }
+		 else
+		 {
+			 gsl_integration_qags (&precEulerF, tVec.data[i-1], tVec.data[i], 0, 1e-9, 1000, precEulerw, &precEulerresult, &precEulererror); 
+			 Gamma->data[i] = Gamma->data[i-1] + precEulerresult;
+		 }
+		 			
+			fprintf( out, "%.16e %.16e %.16e %.16e\n", tVec.data[i], Gamma->data[i], precEulerresult, precEulererror);
+	}  
+  fclose(out);
+
+   gsl_integration_workspace_free( precEulerw );
+   gsl_spline_free( x_spline );
+   gsl_spline_free( y_spline );
+   gsl_spline_free( z_spline );
+   gsl_interp_accel_free( x_acc );
+   gsl_interp_accel_free( y_acc );
+   gsl_interp_accel_free( z_acc );
+   
   /* WaveStep 1.5: moved to here  */
   modefreqVec.length = 1;
   modefreqVec.data   = &modeFreq;
