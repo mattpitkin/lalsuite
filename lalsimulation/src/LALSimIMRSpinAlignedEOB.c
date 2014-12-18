@@ -1823,7 +1823,9 @@ if(importDynamicsAndGetDerivatives)
   /*
    * STEP 1) Solve for initial conditions
    */
-
+   int NoComputeInitialConditions = 1;
+if( !NoComputeInitialConditions )
+{
   REAL8 UNUSED temp32;
   temp32 = 17.23333034918909 + 0 * fMin / mTotal  / LAL_PI / LAL_MTSUN_SI;
   REAL8Vector* tmpValues2 = NULL;
@@ -1850,26 +1852,8 @@ if(importDynamicsAndGetDerivatives)
 	  for( j=0; j < tmpValues2->length; j++)
 		printf("%.16le\n", tmpValues2->data[j]);
 	}
+}
   
-  
-#if 1
-if(debugPK)
-  printf("Overwriting initial conditions\n");
-
-  values->data[0] = 2.5000000000000000e+01;
-  values->data[1] = -2.7380429870100001e-23;
-  values->data[2] = -2.8953132596299999e-19;
-  values->data[3] = -1.1854855421800000e-04;
-  values->data[4] = 2.1180585973900001e-01;
-  values->data[5] = -4.0060159474199999e-05;
-  values->data[6] = -4.1225633554699997e-01 * (mTotal/m1) * (mTotal/m1) * 0;
-  values->data[7] = -3.3047541974700001e-01 * (mTotal/m1) * (mTotal/m1) * 0;
-  values->data[8] = 1.7167610798600000e-01 * (mTotal/m1) * (mTotal/m1);
-  values->data[9] = 1.3483616572900000e-02 * (mTotal/m2) * (mTotal/m2) * 0;
-  values->data[10] = 2.1175823681400000e-22 * (mTotal/m2) * (mTotal/m2) * 0;
-  values->data[11] = 9.7964208715400000e-03 * (mTotal/m2) * (mTotal/m2);
-#endif
-
   /* Assume that initial conditions are available at this point, to 
    * compute the chiS and chiA parameters. 
    * Calculate the values of chiS and chiA, as given in Eq.16 of 
@@ -2231,17 +2215,22 @@ if(debugPK)
 		
 		/* Unwrap the two angles */
 		Alpha->data[i] = atan2( LN_y->data[i], LN_x->data[i] ) + phaseCounterA * LAL_TWOPI;
-		if( i && Alpha->data[i] > Alpha->data[i-1] )
+		if( i && Alpha->data[i] - Alpha->data[i-1] > 5. )
 		{
 			phaseCounterA--; 
 			Alpha->data[i] -= LAL_TWOPI;
 		}
+		else if( i && Alpha->data[i] - Alpha->data[i-1] < -5. )
+		{
+			phaseCounterA++;
+			Alpha->data[i] += LAL_TWOPI;
+		}
 		
-		Beta->data[i] = acos( LN_z->data[i] ) + phaseCounterB * LAL_TWOPI;
+		Beta->data[i] = acos( LN_z->data[i] ) + 0*phaseCounterB * LAL_TWOPI;
 		if( i && Beta->data[i] > Beta->data[i-1] )
 		{
 			phaseCounterB--;
-			Beta->data[i] -= LAL_TWOPI;
+			//Beta->data[i] -= LAL_TWOPI;
 		}
 		
 	}
@@ -2251,7 +2240,7 @@ if(debugPK)
   for(i = 0; i < retLenLow; i++)
   {
 		/* */
-		fprintf( out, "%.16e %.16e %.16e\n", tVec.data[i], Alpha->data[i], Beta->data[i] );
+		fprintf( out, "%.16e %.16e %.16e %d %d\n", tVec.data[i], Alpha->data[i], Beta->data[i], phaseCounterA, phaseCounterB );
 	}
   fclose(out);
   
