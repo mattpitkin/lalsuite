@@ -1356,7 +1356,7 @@ int XLALSimIMRSpinEOBWaveform(
   values->data[10] = -0.00156249999995;
   values->data[11] = -0.00156250000004;*/
 
-  values->data[0] = 15.87;
+  /*values->data[0] = 15.87;
   values->data[1] = 0.;
   values->data[2] = 0.;
   values->data[3] = -0.0005229624453230818;
@@ -1367,9 +1367,9 @@ int XLALSimIMRSpinEOBWaveform(
   values->data[8] = 0.001330438577632606 * (mTotal/m1) * (mTotal/m1);
   values->data[9] = 0.;
   values->data[10] = 0.;
-  values->data[11] = 0.;
+  values->data[11] = 0.;*/
   
-  /*values->data[0] = 2.5000000000000000e+01;
+  values->data[0] = 2.5000000000000000e+01;
   values->data[1] = -2.7380429870100001e-23;
   values->data[2] = -2.8953132596299999e-19;
   values->data[3] = -1.1854855421800000e-04;
@@ -1380,7 +1380,7 @@ int XLALSimIMRSpinEOBWaveform(
   values->data[8] = 1.7167610798600000e-01 * (mTotal/m1) * (mTotal/m1);
   values->data[9] = 1.3483616572900000e-02 * (mTotal/m2) * (mTotal/m2);
   values->data[10] = 2.1175823681400000e-22 * (mTotal/m2) * (mTotal/m2);
-  values->data[11] = 9.7964208715400000e-03 * (mTotal/m2) * (mTotal/m2);*/
+  values->data[11] = 9.7964208715400000e-03 * (mTotal/m2) * (mTotal/m2);
 
   /** Sergei: r = 20M, spin pointing at the smaller BH, orbital omega ~0.015 */
   /*values->data[0] = 2.000000000000000e+01;
@@ -1836,7 +1836,7 @@ if(importDynamicsAndGetDerivatives)
   /*
    * STEP 1) Solve for initial conditions
    */
-   int NoComputeInitialConditions = 1;
+   int NoComputeInitialConditions = 0;
 if( !NoComputeInitialConditions )
 {
   REAL8 UNUSED temp32;
