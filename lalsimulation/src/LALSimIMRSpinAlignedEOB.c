@@ -2183,7 +2183,7 @@ if( !NoComputeInitialConditions )
   fclose( out );
 
   /*
-   * STEP 4) Interpolate trajectories to compute L_N (t) in order to get alpha (t) and beta (t)
+   * STEP 4.1) Interpolate trajectories to compute L_N (t) in order to get alpha (t) and beta (t)
    */
    fprintf( stderr, "Generating Alpha and Beta angle timeseries at low SR\n" );
 
@@ -2292,6 +2292,119 @@ if( !NoComputeInitialConditions )
 		 }
 		 			
 			fprintf( out, "%.16e %.16e %.16e %.16e\n", tVec.data[i], Gamma->data[i], precEulerresult, precEulererror);
+	}  
+  fclose(out);
+
+  /*
+   * STEP 4.2) Interpolate trajectories to compute L_N (t) in order to get alpha (t) and beta (t)
+   */
+  fprintf( stderr, "Generating Alpha and Beta angle timeseries at high SR\n" );
+
+  REAL8Vector *LN_xHi = NULL; REAL8Vector *LN_yHi = NULL; REAL8Vector *LN_zHi = NULL;
+  LN_xHi = XLALCreateREAL8Vector( retLenHi );
+  LN_yHi = XLALCreateREAL8Vector( retLenHi );
+  LN_zHi = XLALCreateREAL8Vector( retLenHi );
+  
+  REAL8Vector *AlphaHi = NULL; REAL8Vector *BetaHi = NULL;
+  AlphaHi = XLALCreateREAL8Vector( retLenHi );
+  BetaHi   = XLALCreateREAL8Vector( retLenHi );
+  
+  x_spline = gsl_spline_alloc( gsl_interp_cspline, retLenHi );
+  y_spline = gsl_spline_alloc( gsl_interp_cspline, retLenHi );
+  z_spline = gsl_spline_alloc( gsl_interp_cspline, retLenHi );
+  
+  x_acc    = gsl_interp_accel_alloc();
+  y_acc    = gsl_interp_accel_alloc();
+  z_acc    = gsl_interp_accel_alloc();
+  
+  gsl_spline_init( x_spline, timeHi.data, posVecxHi.data, retLenHi );
+  gsl_spline_init( y_spline, timeHi.data, posVecyHi.data, retLenHi );
+  gsl_spline_init( z_spline, timeHi.data, posVeczHi.data, retLenHi );
+ 
+  fprintf( stderr, "WRiting Alpha and Beta angle timeseries at High SR to alphaANDbetaHi.dat\n" );
+  out = fopen( "alphaANDbetaHi.dat","w");
+  for( i=0; i < retLenHi; i++ )
+  {
+		tmpR[0] = posVecxHi.data[i]; tmpR[1] = posVecyHi.data[i]; tmpR[2] = posVeczHi.data[i];
+		tmpRdot[0] = gsl_spline_eval_deriv( x_spline, timeHi.data[i], x_acc );
+		tmpRdot[1] = gsl_spline_eval_deriv( y_spline, timeHi.data[i], y_acc );
+		tmpRdot[2] = gsl_spline_eval_deriv( z_spline, timeHi.data[i], z_acc );
+		
+		LN_xHi->data[i] = tmpR[1] * tmpRdot[2] - tmpR[2] * tmpRdot[1];
+		LN_yHi->data[i] = tmpR[2] * tmpRdot[0] - tmpR[0] * tmpRdot[2];
+		LN_zHi->data[i] = tmpR[0] * tmpRdot[1] - tmpR[1] * tmpRdot[0];
+		
+		magLN = sqrt(LN_xHi->data[i] * LN_xHi->data[i] + LN_yHi->data[i] * LN_yHi->data[i] + LN_zHi->data[i] * LN_zHi->data[i]);
+		LN_xHi->data[i] /= magLN; LN_yHi->data[i] /= magLN; LN_zHi->data[i] /= magLN;
+		
+		/* Unwrap the two angles */
+		AlphaHi->data[i] = atan2( LN_yHi->data[i], LN_xHi->data[i] ) + phaseCounterA * LAL_TWOPI;
+		if( i && AlphaHi->data[i] - AlphaHi->data[i-1] > 5. )
+		{
+			phaseCounterA--; 
+			AlphaHi->data[i] -= LAL_TWOPI;
+		}
+		else if( i && AlphaHi->data[i] - AlphaHi->data[i-1] < -5. )
+		{
+			phaseCounterA++;
+			AlphaHi->data[i] += LAL_TWOPI;
+		}
+		
+		/* Make sure that Alpha agrees initially with the low SR value */
+		AlphaHi->data[i] -= (AlphaHi->data[0] - Alpha->data[hiSRndx]);
+		
+		BetaHi->data[i] = acos( LN_zHi->data[i] ) + 0*phaseCounterB * LAL_TWOPI;
+		if( i && BetaHi->data[i] > BetaHi->data[i-1] )
+		{
+			phaseCounterB--;
+			//Beta->data[i] -= LAL_TWOPI;
+		}
+
+		fprintf( out, "%.16e %.16e %.16e %d %d %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e\n", tVec.data[hiSRndx]+timeHi.data[i], 
+		    AlphaHi->data[i], BetaHi->data[i], 
+				phaseCounterA, phaseCounterB, tmpR[0], tmpR[1], tmpR[2], tmpRdot[0], tmpRdot[1], tmpRdot[2],
+				LN_xHi->data[i], LN_yHi->data[i], LN_zHi->data[i] );
+	}
+  fclose(out);
+
+  /* Integrate \dot{\alpha} \cos{\beta} to get the final Euler angle*/
+  x_spline = gsl_spline_alloc( gsl_interp_cspline, retLenHi );
+  x_acc = gsl_interp_accel_alloc();  
+  gsl_spline_init( x_spline, timeHi.data, AlphaHi->data, retLenHi );
+  
+  y_spline = gsl_spline_alloc( gsl_interp_cspline, retLenHi );
+  y_acc = gsl_interp_accel_alloc();
+  gsl_spline_init( y_spline, timeHi.data, BetaHi->data, retLenHi );
+  
+  REAL8Vector *GammaHi = NULL;
+  GammaHi = XLALCreateREAL8Vector( retLenHi );
+
+  //PrecEulerAnglesIntegration precEulerparams;
+  precEulerparams.alpha_spline = x_spline;
+  precEulerparams.alpha_acc       = x_acc;
+  precEulerparams.beta_spline   = y_spline;
+  precEulerparams.beta_acc         = y_acc;
+   
+   /*gsl_integration_workspace * */precEulerw = gsl_integration_workspace_alloc (1000);
+   precEulerresult = 0, precEulererror = 0;
+   
+   //gsl_function precEulerF;
+   precEulerF.function = &f_alphadotcosi;
+   precEulerF.params = &precEulerparams;
+   
+   fprintf( stderr, "WRiting Gamma angle timeseries at High SR to gammaHi.dat\n" );
+   out = fopen( "gammaHi.dat","w");  
+   for( i = 0; i < retLenHi; i++ )
+   {
+		 if( i==0 )
+		   { GammaHi->data[i] = Gamma->data[hiSRndx]; }
+		 else
+		 {
+			 gsl_integration_qags (&precEulerF, timeHi.data[i-1], timeHi.data[i], 0, 1e-9, 1000, precEulerw, &precEulerresult, &precEulererror); 
+			 GammaHi->data[i] = GammaHi->data[i-1] + precEulerresult;
+		 }
+		 			
+			fprintf( out, "%.16e %.16e %.16e %.16e\n", tVec.data[hiSRndx]+timeHi.data[i], GammaHi->data[i], precEulerresult, precEulererror);
 	}  
   fclose(out);
 
