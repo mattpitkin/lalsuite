@@ -118,6 +118,18 @@ struct tagHcapSphDeriv2Params
 }
 HcapSphDeriv2Params;
 
+/* We need to encapsulate the data for the GSL derivative function */
+typedef
+struct tagPrecEulerAnglesIntegration
+{
+   gsl_spline *alpha_spline;
+   gsl_spline *beta_spline;
+   
+   gsl_interp_accel *alpha_acc;
+   gsl_interp_accel *beta_acc;
+}
+PrecEulerAnglesIntegration;
+
 /*
 int XLALSimIMREOBCalcSpinFacWaveformCoefficients(
           FacWaveformCoeffs * const coeffs,
