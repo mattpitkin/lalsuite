@@ -1368,8 +1368,8 @@ int XLALSimIMRSpinEOBWaveform(
   values->data[9] = 0.;
   values->data[10] = 0.;
   values->data[11] = 0.;
-  
-  /*values->data[0] = 2.5000000000000000e+01;
+  /*
+  values->data[0] = 2.5000000000000000e+01;
   values->data[1] = -2.7380429870100001e-23;
   values->data[2] = -2.8953132596299999e-19;
   values->data[3] = -1.1854855421800000e-04;
@@ -1380,7 +1380,8 @@ int XLALSimIMRSpinEOBWaveform(
   values->data[8] = 1.7167610798600000e-01 * (mTotal/m1) * (mTotal/m1);
   values->data[9] = 1.3483616572900000e-02 * (mTotal/m2) * (mTotal/m2);
   values->data[10] = 2.1175823681400000e-22 * (mTotal/m2) * (mTotal/m2);
-  values->data[11] = 9.7964208715400000e-03 * (mTotal/m2) * (mTotal/m2);*/
+  values->data[11] = 9.7964208715400000e-03 * (mTotal/m2) * (mTotal/m2);
+  */
 
   /** Sergei: r = 20M, spin pointing at the smaller BH, orbital omega ~0.015 */
   /*values->data[0] = 2.000000000000000e+01;
@@ -2024,7 +2025,7 @@ if( !NoComputeInitialConditions )
               StasS1, StasS2, acos(spin1[2]/StasS1), acos(spin2[2]/StasS2), 
               atan2(spin1[1], spin1[0]), atan2(spin2[1], spin2[0]) );
       }
-
+    
 
       fflush(NULL);
   } 
@@ -2853,9 +2854,13 @@ if( !NoComputeInitialConditions )
     LNhy  = LNhy / magLN;
     LNhz  = LNhz / magLN;
 
-    aI2P = atan2( LNhy, LNhx );
+    /*aI2P = atan2( LNhy, LNhx );
     bI2P = acos( LNhz );
-    gI2P = -phiMod.data[i] + 16.8; /*  + 16.8;  needed to compare with C++ */
+    gI2P = -phiMod.data[i]; */ /* this one is defined w.r.t. L not LN*/
+    aI2P = Alpha->data[i];
+    bI2P = Beta->data[i];
+    gI2P = Gamma->data[i];
+
     LframeEx[0] =  cos(aI2P)*cos(bI2P)*cos(gI2P) - sin(aI2P)*sin(gI2P);
     LframeEx[1] =  sin(aI2P)*cos(bI2P)*cos(gI2P) + cos(aI2P)*sin(gI2P);
     LframeEx[2] = -sin(bI2P)*cos(gI2P);
@@ -3156,9 +3161,12 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
     LNhy  = LNhy / magLN;
     LNhz  = LNhz / magLN;
 
-    aI2P = atan2( LNhy, LNhx );
+    /*aI2P = atan2( LNhy, LNhx );
     bI2P = acos( LNhz );
-    gI2P = -phiModHi.data[i] + 16.8; /*  + 16.8;  needed to compare with C++ */
+    gI2P = -phiModHi.data[i]; */  
+    aI2P = AlphaHi->data[i];
+    bI2P = BetaHi->data[i];
+    gI2P = GammaHi->data[i];
     LframeEx[0] =  cos(aI2P)*cos(bI2P)*cos(gI2P) - sin(aI2P)*sin(gI2P);
     LframeEx[1] =  sin(aI2P)*cos(bI2P)*cos(gI2P) + cos(aI2P)*sin(gI2P);
     LframeEx[2] = -sin(bI2P)*cos(gI2P);
@@ -3397,7 +3405,7 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
   {
     fprintf( out, "%.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e\n",
              /*timeHi.data[i]+HiSRstart, creal(h22JTSHi->data->data[i]), cimag(h22JTSHi->data->data[i]),*/
-             timeHi.data[i], creal(h22JTSHi->data->data[i]), cimag(h22JTSHi->data->data[i]),
+             timeHi.data[i]+HiSRstart, creal(h22JTSHi->data->data[i]), cimag(h22JTSHi->data->data[i]),
                                 creal(h21JTSHi->data->data[i]), cimag(h21JTSHi->data->data[i]),
                                 creal(h20JTSHi->data->data[i]), cimag(h20JTSHi->data->data[i]),
                                 creal(h2m1JTSHi->data->data[i]), cimag(h2m1JTSHi->data->data[i]),
@@ -3425,9 +3433,18 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
   rdMatchPoint->data[0] = combSize < tAttach ? tAttach - combSize : 0;
   rdMatchPoint->data[1] = tAttach;
   rdMatchPoint->data[2] = (retLenHi-1)*deltaTHigh/mTScaled;
-  if (debugPK)  printf("YP::comb range: %f, %f\n",rdMatchPoint->data[0],rdMatchPoint->data[1]);
+  if (debugPK){
+      printf("YP::comb range: %f, %f\n",rdMatchPoint->data[0],rdMatchPoint->data[1]);
+      printf("Stas, tAttach = %f, comb range = %f to %f \n", 
+              tAttach, rdMatchPoint->data[0]+HiSRstart,rdMatchPoint->data[1]+HiSRstart);
+  }
+
   rdMatchPoint->data[0] -= fmod( rdMatchPoint->data[0], deltaTHigh/mTScaled );
   rdMatchPoint->data[1] -= fmod( rdMatchPoint->data[1], deltaTHigh/mTScaled );
+
+  printf("Stas: matching points (again) %f, %f or %f, %f \n", 
+          rdMatchPoint->data[0],rdMatchPoint->data[1],
+          rdMatchPoint->data[0]+HiSRstart,rdMatchPoint->data[1]+HiSRstart);
   
   /*** Stas Let's try to attach RD to 2,2 mode: ***/
 
@@ -3466,7 +3483,7 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
   for ( i = 0; i < retLenHi + retLenRDPatch; i++ )
   {
     fprintf( out, "%.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e %.16e\n",
-             i*deltaTHigh/mTScaled, creal(hIMR22JTSHi->data->data[i]), cimag(hIMR22JTSHi->data->data[i]),
+             tlistRDPatchHi->data[i], creal(hIMR22JTSHi->data->data[i]), cimag(hIMR22JTSHi->data->data[i]),
                                 creal(hIMR21JTSHi->data->data[i]), cimag(hIMR21JTSHi->data->data[i]),
                                 creal(hIMR20JTSHi->data->data[i]), cimag(hIMR20JTSHi->data->data[i]),
                                 creal(hIMR2m1JTSHi->data->data[i]), cimag(hIMR2m1JTSHi->data->data[i]),
@@ -3493,8 +3510,12 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
      spline = gsl_spline_alloc( gsl_interp_cspline, retLenHi + retLenRDPatch );
      acc    = gsl_interp_accel_alloc();     
      gsl_spline_init( spline, tlistRDPatchHi->data, sigReHi->data, retLenHi + retLenRDPatch );
-     for (i = retLenLow; i< retLenLow+retLenRDPatchLow; i++){
+     for (i = retLenLow-4; i< retLenLow+retLenRDPatchLow; i++){
         hIMRJTS->data->data[i] = gsl_spline_eval( spline, tlistRDPatch->data[i], acc );
+        if (i<retLenLow+6){
+           printf("Stas interp. of %d Jw: t= %f, Re(w)= %f \n", k, tlistRDPatch->data[i], 
+                   gsl_spline_eval( spline, tlistRDPatch->data[i], acc ));
+        }
      }
      gsl_spline_free(spline);
      gsl_interp_accel_free(acc);
@@ -3502,7 +3523,7 @@ if (i==1900) printf("YP: gamma: %f, %f, %f, %f\n", JframeEy[0]*LframeEz[0]+Jfram
      spline = gsl_spline_alloc( gsl_interp_cspline, retLenHi + retLenRDPatch );
      acc    = gsl_interp_accel_alloc();     
      gsl_spline_init( spline, tlistRDPatchHi->data, sigImHi->data, retLenHi + retLenRDPatch );
-     for (i = retLenLow; i< retLenLow+retLenRDPatchLow; i++){
+     for (i = retLenLow-4; i< retLenLow+retLenRDPatchLow; i++){
         hIMRJTS->data->data[i] += I * gsl_spline_eval( spline, tlistRDPatch->data[i], acc );
      }
 

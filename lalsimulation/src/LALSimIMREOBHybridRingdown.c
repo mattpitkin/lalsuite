@@ -42,6 +42,7 @@
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_interp.h>
 #include <gsl/gsl_spline.h>
+#include <gsl/gsl_blas.h>
 
 #include "LALSimIMREOBNRv2.h"
 #include "LALSimBlackHoleRingdown.h"
@@ -108,10 +109,16 @@ static INT4 XLALSimIMREOBHybridRingdownWave(
   t2 = t3 + rt;
   t1 = t2 + rt;
   
-  /*printf("Something is wrong: (0)-> %.16e, (1)-> %.16e, (0-1)->%.16e\n", 
+ /* printf("Something is wrong: (0)-> %.16e, (1)-> %.16e, (0-1)->%.16e\n", 
         matchrange->data[0], matchrange->data[1], matchrange->data[0] - matchrange->data[1]);
+  double tHiSt = 7492.8397;
   printf("Stas: timechecks t1=%.16e, t2=%.16e, t3=%.16e, t4=%.16e, t5=%.10e \n", 
-          t1/m, t2/m, t3/m, t4/m, t5/m);*/
+          t1/m+matchrange->data[1], t2/m+matchrange->data[1], t3/m+matchrange->data[1], 
+          t4/m+matchrange->data[1], t5/m+matchrange->data[1]);
+  printf("Stas: timechecks t1=%.16e, t2=%.16e, t3=%.16e, t4=%.16e, t5=%.10e \n", 
+          t1/m+matchrange->data[1]+tHiSt, t2/m+matchrange->data[1]+tHiSt, 
+          t3/m+matchrange->data[1]+tHiSt, t4/m+matchrange->data[1]+tHiSt, 
+          t5/m+matchrange->data[1]+tHiSt);*/
   
   if ( inspwave1->length != 3 || inspwave2->length != 3 ||
 		modefreqs->length != nmodes )
@@ -170,6 +177,7 @@ static INT4 XLALSimIMREOBHybridRingdownWave(
 	gsl_vector_set(hderivs, i + nmodes, inspwave2->data[(i + 1) * inspwave2->vectorLength - 1]);
 	gsl_vector_set(hderivs, i + 6, inspwave1->data[i * inspwave1->vectorLength]);
 	gsl_vector_set(hderivs, i + 6 + nmodes, inspwave2->data[i * inspwave2->vectorLength]);
+    /*printf("coefs: i=%d, %d, %d\n", i, (i+1)*inspwave1->vectorLength-1, i*inspwave1->vectorLength);*/
   }
   gsl_vector_set(hderivs, 2, inspwave1->data[4]);
   gsl_vector_set(hderivs, 2 + nmodes, inspwave2->data[4]);
@@ -189,6 +197,48 @@ static INT4 XLALSimIMREOBHybridRingdownWave(
 	  gsl_matrix_set(coef, i + nmodes, k + nmodes, gsl_matrix_get(coef, i, k));
 	}
   }
+
+  /*printf("Stas: checking the LA solver\n");
+  printf("reading LHS...\n");
+  FILE *ifp;
+  ifp = fopen("LHS.dat", "r");
+  double lhs[256];
+  
+  int ii = 0;
+  while (fscanf(ifp, "%lf", &lhs[ii]) != EOF){
+      ii ++;
+  }
+  printf("done\n");
+  printf("Stas, lhs check -> %f, %lf \n", lhs[0], lhs[255]);
+  fclose(ifp);
+
+  double rhs[16];
+  ifp = fopen("RHS.dat", "r");
+  ii = 0;
+  while (fscanf(ifp, "%lf", &rhs[ii]) != EOF){
+      ii ++;
+  }
+  printf("Stas, rhs check -> %lf, %lf \n", rhs[0], rhs[15]);
+  fclose(ifp);
+  
+  printf("Stas test, nmodes=%d \n", nmodes);
+  for (i = 0; i < 2*nmodes; ++i)
+  {
+	gsl_vector_set(hderivs, i, rhs[i]);
+	for (k = 0; k < 2*nmodes; ++k)
+	{
+	  gsl_matrix_set(coef, i, k, lhs[2*nmodes*i+k]);
+	}
+  }*/
+
+  /*printf("RHS:  ");
+  printf("[");
+  for (i = 0; i < 16; ++i)
+  {
+    printf("%.12e,   ",gsl_vector_get(hderivs,i));
+  }
+  printf("]\n");*/
+
 
   #if 0
   /* print ringdown-matching linear system: coefficient matrix and RHS vector 
@@ -211,6 +261,17 @@ static INT4 XLALSimIMREOBHybridRingdownWave(
   printf("]\n");*/
   #endif
 
+  /*printf("Stas: debugging Linear equations solver\n");
+   * gsl_matrix *stas_m;
+  XLAL_CALLGSL( stas_m = (gsl_matrix *) gsl_matrix_alloc(2 * nmodes, 2 * nmodes) );
+  for (i = 0; i < 2*nmodes; ++i)
+  {
+	for (k = 0; k < 2*nmodes; ++k)
+	{
+	  gsl_matrix_set(stas_m, i, k, gsl_matrix_get(coef, i, k));
+	}
+  }*/
+
   /* Call gsl LU decomposition to solve the linear system */
   XLAL_CALLGSL( gslStatus = gsl_linalg_LU_decomp(coef, p, &s) );
   if ( gslStatus == GSL_SUCCESS )
@@ -231,21 +292,40 @@ static INT4 XLALSimIMREOBHybridRingdownWave(
 
   if ( !modeamps )
   {
-    gsl_matrix_free(coef);
+    g sl_matrix_free(coef);
     gsl_vector_free(hderivs);
     gsl_vector_free(x);
     gsl_permutation_free(p);
     XLAL_ERROR( XLAL_ENOMEM );
   }
 
-  /*printf("Stas: solution:\n");*/
+ /* printf("Stas: solution:\n");
   for (i = 0; i < nmodes; ++i)
   {
 	modeamps->data[i] = gsl_vector_get(x, i);
 	modeamps->data[i + nmodes] = gsl_vector_get(x, i + nmodes);
-    /* printf(" %.16e,   %.16e,  ", gsl_vector_get(x, i), gsl_vector_get(x, i+nmodes)); */
+     printf(" %.16e,   %.16e,  ", gsl_vector_get(x, i), gsl_vector_get(x, i+nmodes)); 
   }
-  /*printf("\n");*/
+  printf("\n");*/
+  
+  /***************************************/
+  /*printf("Stas: checking the solution\n");
+  printf("Delete stas_m after use! \n") */
+  /* double st_tmp;
+  for (i = 0; i < nmodes*2; ++i)
+  {  
+     st_tmp = 0.0;
+     for (j=0; j< nmodes*2; j++){ 
+          st_tmp += gsl_matrix_get(stas_m, i, j)*gsl_vector_get(x, j);
+     }
+     printf(" %.16e,  ", st_tmp);     
+  }
+  printf("\n");
+  gsl_matrix_free(stas_m);
+  */
+
+
+ /* exit(0);*/
 
   /* Free all gsl linear algebra objects */
   gsl_matrix_free(coef);
@@ -256,6 +336,8 @@ static INT4 XLALSimIMREOBHybridRingdownWave(
   /* Build ring-down waveforms */
 
   REAL8 timeOffset = fmod( matchrange->data[1], dt/m) * dt;
+
+  /*printf("Stas: timeOffset = %f \n", timeOffset);*/
 
   for (j = 0; j < rdwave1->length; ++j)
   {
@@ -271,6 +353,10 @@ static INT4 XLALSimIMREOBHybridRingdownWave(
 			* (- modeamps->data[i] * sin(tj * creal(modefreqs->data[i]))
 			+   modeamps->data[i + nmodes] * cos(tj * creal(modefreqs->data[i])) );
 	}
+    /*if (j<10){
+       printf("Stas RDwave at t=%f, is %f + j %f   \n", tj, rdwave1->data[j], 
+               rdwave2->data[j]);
+    }*/
   }
 
   XLALDestroyREAL8Vector(modeamps);
@@ -323,14 +409,15 @@ static INT4 XLALGenerateHybridWaveDerivatives (
   tlist[4] = tlist[3] + rt;
   tlist[5] = matchrange->data[1];
 
-  /*printf("Stas: range of comb: %.10e - %.10e \n", matchrange->data[0], matchrange->data[1]);*/
-  /*for (j=0; j<6; j++){
+  /*printf("Stas: range of comb: %.10e - %.10e \n", matchrange->data[0], matchrange->data[1]);
+  for (j=0; j<6; j++){
       printf("Stas: attachment points are %.10e  \n", tlist[j]+5.50372621772e4);
+      printf("Stas: attachment points are %.10e  \n", tlist[j]+7.4928397137240454e+03);
   }*/ 
 
   /* Set the length of the interpolation vectors */
   vecLength = ( m * matchrange->data[2] / dt ) + 1;
-  /*printf("Stas: check sizes velLength -> %d, wave->length= %d \n", vecLength, wave->length);*/
+  /*printf("Stas: check sizes vecLength -> %d, wave->length= %d \n", vecLength, wave->length);*/
   vecLength = timeVec->length;
 
   /* Getting interpolation and derivatives of the waveform using gsl spline routine */
@@ -388,6 +475,8 @@ static INT4 XLALGenerateHybridWaveDerivatives (
     rwave->data[j]  = (REAL8)(ry);
     dwave->data[j]  = (REAL8)(dy/m);
     ddwave->data[j] = (REAL8)(dy2/m/m);
+    /*printf("Stas: interpolatin results->t=%f, f= %f, df=%f, ddf=%f \n", 
+            tlist[j], ry, dy/m, dy/m/m);*/
 
   }
   
@@ -496,7 +585,8 @@ static INT4 XLALSimIMREOBHybridAttachRingdown(
       {
         XLAL_ERROR( XLAL_EFUNC );
       }
-      printf("Stas: done2 \n finalMass = %.10e, finalspin = %.10e\n", finalMass, finalSpin);
+      /*finalSpin =  0.542907760494;*/
+      /*printf("Stas: done2 \n finalMass = %.10e, finalspin = %.10e\n", finalMass, finalSpin);*/
 
       if ( approximant == SEOBNRv1 )
       {
@@ -550,6 +640,7 @@ static INT4 XLALSimIMREOBHybridAttachRingdown(
       if (approximant == SEOBNRv3 )
       {    
           if (fabs(m) == 2 && l ==2){ 
+          /*if (m == 2 && l ==2){ */
             chi1 = sqrt( spin1[0]*spin1[0] + spin1[1]*spin1[1] + spin1[2]*spin1[2] );
             chi2 = sqrt( spin2[0]*spin2[0] + spin2[1]*spin2[1] + spin2[2]*spin2[2] );
             if ( chi1 < 1.0e-15 )
@@ -565,15 +656,42 @@ static INT4 XLALSimIMREOBHybridAttachRingdown(
 
             a  = (chi1 + chi2) / 2. * (1.0 - 2.0 * eta) + (chi1 - chi2) / 2. * (mass1 - mass2) / (mass1 + mass2);
             NRPeakOmega22 = GetNRSpinPeakOmega( l, m, eta, a ) / mTot;
+          
+            chi = (chi1 + chi2) / 2. + (chi1 - chi2) / 2. * sqrt(1. - 4. * eta) / (1. - 2. * eta);
+            /* For extreme chi (>= 0.8), there are scale factors in both complex
+             * pseudo-QNM frequencies. kk, kt1, kt2 describe those factors. */
+            /*printf("Stas: a, chi and NRomega in QNM freq: %.16e %.16e %.16e %.16e %.16e %.16e\n",
+              spin1[2],spin2[2],mTot/LAL_MTSUN_SI,a,chi,NRPeakOmega22*mTot);*/
+            kk = kt1 = kt2 = 1.;
+            if ( chi >= 0.8 )
+            {
+               kk = 0.7 + 0.3 * exp(100. * (eta - 0.25));
+               kt1 = -0.125 + sqrt(1. + 200. * pow(eta,2) / 3.)/2.;
+               kt2 = -0.2 + pow(1. + 200. * pow(eta, 3./2.) / 9., 2./3.)/2.;
+            }
+            /* Here is RD_V2
+             if (m<0){
+                modefreqs->data[6] = kk * ((2./3. * NRPeakOmega22/finalMass) + (1./3. * creal(modefreqs->data[0])) );
+                modefreqs->data[7] = kk * ((3./4. * NRPeakOmega22/finalMass) + (1./4. * creal(modefreqs->data[0])) / 2.);
+            }else{
+                modefreqs->data[6] = kk * ((2./3. * NRPeakOmega22/finalMass) + (1./3. * creal(modefreqs->data[0])) );
+                modefreqs->data[7] = kk * ((3./4. * NRPeakOmega22/finalMass) + (1./4. * creal(modefreqs->data[0])) / 2.);
+            }
+            modefreqs->data[6] += I * 3.5/0.9 * cimag(modefreqs->data[0]) / kt1;
+            modefreqs->data[7] += I * 3.5 * cimag(modefreqs->data[0]) / kt2;
+            
+            */
             /*Stas: somehow it makes thinigs worse */
             /*modefreqs->data[7] = (NRPeakOmega22/finalMass + creal(modefreqs->data[0])) / 2.;       
             modefreqs->data[7] += I * 10./3. * cimag(modefreqs->data[0]); */
-            if (m<0)
-              //modefreqs->data[7] = (-NRPeakOmega22/finalMass + creal(modefreqs->data[0])) / 2.;       
-              modefreqs->data[7] = (-NRPeakOmega22 + creal(modefreqs->data[0])) / 2.;       
-            else
+            /* This is a version1 of RD attachment */
+            if (m<0){
+              modefreqs->data[7] = (-NRPeakOmega22/finalMass + creal(modefreqs->data[0])) / 2.;       
+            }
+            else {
               modefreqs->data[7] = (NRPeakOmega22/finalMass + creal(modefreqs->data[0])) / 2.;
-            modefreqs->data[7] += I * 10./3. * cimag(modefreqs->data[0]);
+            }
+            modefreqs->data[7] += I * 10./3. * cimag(modefreqs->data[0]); /**/
           }
 
       }
