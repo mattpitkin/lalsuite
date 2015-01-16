@@ -290,7 +290,7 @@ XLALFindSphericalOrbit( const gsl_vector *x, /**<< Parameters requested by gsl r
 { int debugPK = 1;
   SEOBRootParams *rootParams = (SEOBRootParams *) params;
   REAL8 mTotal = rootParams->params->eobParams->m1 + rootParams->params->eobParams->m2;
-  if(debugPK)printf("mtotal in XLALFindSphericalOrbit = %f\n", (float) mTotal);
+  if(debugPK)printf("\n\nmtotal in XLALFindSphericalOrbit = %f\n", (float) mTotal);
   
   REAL8 py, pz, r, ptheta, pphi;
 
@@ -304,10 +304,10 @@ XLALFindSphericalOrbit( const gsl_vector *x, /**<< Parameters requested by gsl r
   rootParams->values[4] = py = gsl_vector_get( x, 1 );
   rootParams->values[5] = pz = gsl_vector_get( x, 2 );
 
-  if(debugPK)printf( "Values r = %.16e, py = %.16e, pz = %.16e\n", r, py, pz );
-
   ptheta = - r * pz;
   pphi   = r * py;
+
+  if(debugPK)printf( "Input Values r = %.16e, py = %.16e, pz = %.16e\n pthetha = %.16e pphi = %.16e\n", r, py, pz, ptheta, pphi );
 
   /* dH by dR and dP */
   REAL8 tmpDValues[14];
@@ -329,7 +329,6 @@ XLALFindSphericalOrbit( const gsl_vector *x, /**<< Parameters requested by gsl r
   {
     XLAL_ERROR( XLAL_EFUNC );
   }
-  if(debugPK)printf( "dHdx = %.16e\n", dHdx );
 
   /* dHdPphi (I think we can use dHdPy in this coord system) */
   /* TODO: Check this is okay */
@@ -346,12 +345,14 @@ XLALFindSphericalOrbit( const gsl_vector *x, /**<< Parameters requested by gsl r
   {
     XLAL_ERROR( XLAL_EFUNC );
   }
+  if(debugPK)printf( "dHdx = %.16e, dHdpy = %.16e, dHdpz = %.16e\n", dHdx, dHdpy, dHdpz );
 
   /* Now convert to spherical polars */
   dHdr      = dHdx - dHdpy * pphi / (r*r) + dHdpz * ptheta / (r*r);
   dHdptheta = - dHdpz / r;
   dHdpphi   = dHdpy / r;
 
+  if(debugPK)printf("dHdr = %.16e dHdptheta = %.16e dHdpphi = %.16e\n", dHdr, dHdptheta, dHdpphi);
   /* populate the function vector */
   gsl_vector_set( f, 0, dHdr );
   gsl_vector_set( f, 1, dHdptheta );
@@ -742,10 +743,11 @@ static int XLALSimIMRSpinEOBInitialConditions(
   /* To start with, we will just assign Newtonian-ish ICs to the system */
   rootParams.values[0] = 1./(v0*v0);  /* Initial r */
   rootParams.values[4] = v0;    /* Initial p */
+  rootParams.values[5] = 1e-3; // PK
   memcpy( rootParams.values+6, tmpS1, sizeof( tmpS1 ) );
   memcpy( rootParams.values+9, tmpS2, sizeof( tmpS2 ) );
 
-  if(debugPK)printf( "ICs guess: r = %.16e, p = %.16e\n", rootParams.values[0], rootParams.values[4] );
+  if(debugPK)printf( "ICs guess: x = %.16e, py = %.16e\n", rootParams.values[0], rootParams.values[4] );
 
   /* Initialise the gsl stuff */
   XLAL_CALLGSL( rootSolver = gsl_multiroot_fsolver_alloc( T, 3 ) );
@@ -800,7 +802,7 @@ static int XLALSimIMRSpinEOBInitialConditions(
       XLAL_ERROR( XLAL_EFUNC );
     }
 
-    XLAL_CALLGSL( gslStatus = gsl_multiroot_test_residual( rootSolver->f, 1.0e-10 ) );
+    XLAL_CALLGSL( gslStatus = gsl_multiroot_test_residual( rootSolver->f, 1.0e-10) );
     i++;
   }
   while ( gslStatus == GSL_CONTINUE && i <= maxIter );
@@ -910,7 +912,8 @@ static int XLALSimIMRSpinEOBInitialConditions(
 		cartValues[i+9] *= mTotal * mTotal;
 	}  
 	
-	dHdpphi  = tmpDValues[1]; //XLALSpinHcapNumDerivWRTParam( 4, cartValues, params ) / sphValues[0];
+	dHdpphi  = tmpDValues[1] / sqrt(cartValues[0]*cartValues[0] + cartValues[1]*cartValues[1] + cartValues[2]*cartValues[2]); 
+	//XLALSpinHcapNumDerivWRTParam( 4, cartValues, params ) / sphValues[0];
   
   dEdr  = - dHdpphi * d2Hdr2 / d2Hdrdpphi;
 
@@ -975,7 +978,10 @@ static int XLALSimIMRSpinEOBInitialConditions(
 
     rDot  = - flux / dEdr;
 
-    /* We now need dHdpr - we take it that it is safely linear up to a pr of 1.0e-3 */
+    /* We now need dHdpr - we take it that it is safely linear up to a pr of 1.0e-3
+     * PK: Ideally, the pr should be of the order of other momenta, in order for its 
+     * contribution to the Hamiltonian to not get buried in the numerical noise in 
+     * the numerically larger momenta components */
     cartValues[3] = 1.0e-3;
     for( i =0; i < 3; i ++)
     {
@@ -990,10 +996,9 @@ static int XLALSimIMRSpinEOBInitialConditions(
 	  }  
     dHdpr         = tmpDValues[0]; //XLALSpinHcapNumDerivWRTParam( 3, cartValues, params );
 
-
     if(debugPK){
 			printf( "Ingredients going into prDot:\n" );
-			printf( "flux = %.16e, dEdr = %.16e, dHdpr = %.16e\n", flux, dEdr, dHdpr );
+			printf( "flux = %.16e, dEdr = %.16e, dHdpr = %.16e, dHdpr/pr = %.16e\n", flux, dEdr, dHdpr, dHdpr / cartValues[3] );
 		}
 
     /* We can now calculate what pr should be taking into account the flux */

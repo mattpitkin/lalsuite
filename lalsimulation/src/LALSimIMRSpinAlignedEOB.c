@@ -1837,7 +1837,7 @@ if(importDynamicsAndGetDerivatives)
   /*
    * STEP 1) Solve for initial conditions
    */
-   int NoComputeInitialConditions = 1;
+   int NoComputeInitialConditions = 0;
 if( !NoComputeInitialConditions )
 {
   REAL8 UNUSED temp32;
