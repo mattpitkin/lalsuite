@@ -292,7 +292,7 @@ static INT4 XLALSimIMREOBHybridRingdownWave(
 
   if ( !modeamps )
   {
-    g sl_matrix_free(coef);
+    gsl_matrix_free(coef);
     gsl_vector_free(hderivs);
     gsl_vector_free(x);
     gsl_permutation_free(p);
