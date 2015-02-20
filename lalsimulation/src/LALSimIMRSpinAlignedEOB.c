@@ -1837,7 +1837,7 @@ if(importDynamicsAndGetDerivatives)
   /*
    * STEP 1) Solve for initial conditions
    */
-   int NoComputeInitialConditions = 0;
+   int NoComputeInitialConditions = 1;
 if( !NoComputeInitialConditions )
 {
   REAL8 UNUSED temp32;
@@ -2496,7 +2496,9 @@ if( !NoComputeInitialConditions )
     
     /* Calculate dr/dt */
     memset( dvalues->data, 0, 14*sizeof(dvalues->data[0]));
+    if(debugPK)printf("Entering XLALSpinHcapRvecDerivative\n");
     status = XLALSpinHcapRvecDerivative( 0, values->data, dvalues->data, &seobParams);  
+    if(debugPK)printf("Exiting XLALSpinHcapRvecDerivative\n");
     if( status != XLAL_SUCCESS )
     {
 		printf(" Calculation of dr/dt failed while computing omegaHi time series\n");
