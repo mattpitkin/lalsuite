@@ -1022,7 +1022,7 @@ if (swiglal_release_parent(PTR)) {
 }
 %typemaps_string_alloc(%checkcode(STRING), %checkcode(char), char, LALchar,
                        SWIG_AsLALcharPtrAndSize, SWIG_FromLALcharPtrAndSize,
-                       strlen, SWIG_strnlen, %swiglal_new_copy_array, XLALFree,
+                       strlen, %swiglal_new_copy_array, XLALFree,
                        "<limits.h>", CHAR_MIN, CHAR_MAX);
 
 // Typemaps for string pointers.  By default, treat arguments of type char**
