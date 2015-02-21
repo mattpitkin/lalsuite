@@ -60,16 +60,9 @@
  *------------------------------------------------------------------------------------------
  */
 
-static double GSLSpinHamiltonianWrapper( double x, void *params );
+static REAL8 GSLSpinHamiltonianWrapper( double x, void *params );
 
 static int XLALSpinHcapNumericalDerivative(
-                          double                t,
-                          const REAL8           values[],
-                          REAL8                 dvalues[],
-                          void                  *funcParams
-                               ) UNUSED;
-
-static int XLALSpinHcapNumericalDerivativeNoFlux(
                           double                t,
                           const REAL8           values[],
                           REAL8                 dvalues[],
@@ -81,6 +74,13 @@ static REAL8 XLALSpinHcapNumDerivWRTParam(
                        const REAL8 values[],
                        SpinEOBParams *params
                        ) UNUSED;
+
+static int XLALSpinHcapNumericalDerivativeNoFlux(
+                          double                t,
+                          const REAL8           values[],
+                          REAL8                 dvalues[],
+                          void                  *funcParams
+                               ) UNUSED;
 
 
 /*------------------------------------------------------------------------------------------
@@ -126,7 +126,7 @@ static int XLALSpinHcapNumericalDerivative(
   UINT4 SpinAlignedEOBversion;
 
   UINT4 i, j, k, l;
-  
+
   REAL8Vector rVec, pVec;
   REAL8 rData[3], pData[3];
 
@@ -182,12 +182,12 @@ static int XLALSpinHcapNumericalDerivative(
   mass1 = params.params->eobParams->m1;
   mass2 = params.params->eobParams->m2;
   eta   = params.params->eobParams->eta;
-  SpinAlignedEOBversion = params.params->seobCoeffs->SpinAlignedEOBversion;  
+  SpinAlignedEOBversion = params.params->seobCoeffs->SpinAlignedEOBversion;
   SpinEOBHCoeffs *coeffs = (SpinEOBHCoeffs*) params.params->seobCoeffs;
-  
-  /* For precessing binaries, the effective spin of the Kerr 
+
+  /* For precessing binaries, the effective spin of the Kerr
    * background evolves with time. The coefficients used to compute
-   * the Hamiltonian depend on the Kerr spin, and hence need to 
+   * the Hamiltonian depend on the Kerr spin, and hence need to
    * be updated for the current spin values */
   if ( 0 )
   {/*{{{*/
@@ -741,8 +741,8 @@ static int XLALSpinHcapNumericalDerivative(
 		  
 	printf("Hamiltonian = %12.12lf, Flux = %12.12lf, Omega = %12.12lf\n", H, flux, omega);
 #endif
-#if 1
-	if(debugPK)printf("%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\n\n",
+	if(debugPK){
+		printf("%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\t%.12e\n\n",
         (double) values[0], (double) values[1], (double) values[2], 
         (double) values[3], (double) values[4], (double) values[5], 
         (double) sscaling1*values[6], (double) sscaling1*values[7], 
@@ -755,7 +755,7 @@ static int XLALSpinHcapNumericalDerivative(
         (double) sscaling2*dvalues[10], (double) sscaling2*dvalues[11],
         (double) polData[0], (double) polData[1], (double) polData[2], 
         (double) polData[3], H/(mass1+mass2), flux*eta, omega);
-#endif
+	}
     fflush(NULL);
   }
 

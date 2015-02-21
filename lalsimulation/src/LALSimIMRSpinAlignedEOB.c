@@ -2496,9 +2496,9 @@ if( !NoComputeInitialConditions )
     
     /* Calculate dr/dt */
     memset( dvalues->data, 0, 14*sizeof(dvalues->data[0]));
-    if(debugPK)printf("Entering XLALSpinHcapRvecDerivative\n");
+    //if(debugPK)printf("Entering XLALSpinHcapRvecDerivative\n");
     status = XLALSpinHcapRvecDerivative( 0, values->data, dvalues->data, &seobParams);  
-    if(debugPK)printf("Exiting XLALSpinHcapRvecDerivative\n");
+    //if(debugPK)printf("Exiting XLALSpinHcapRvecDerivative\n");
     if( status != XLAL_SUCCESS )
     {
 		printf(" Calculation of dr/dt failed while computing omegaHi time series\n");
@@ -2591,7 +2591,11 @@ if( !NoComputeInitialConditions )
 	     }
 	     while ( time2 - time1 > 1.0e-5 );
       
-    if(debugPK)printf( "Estimation of the peak is now at time %.16e, %.16e \n", tPeakOmega, tPeakOmega+HiSRstart);
+    if(debugPK) {
+		printf( "Estimation of the peak is now at time %.16e, %.16e \n", 
+					tPeakOmega, tPeakOmega+HiSRstart);
+		fflush(NULL);
+	}
   }
 
   /* WaveStep 1.2: calculate J at merger */
@@ -2629,7 +2633,7 @@ if( !NoComputeInitialConditions )
   Jz = eta*Lz + values->data[8] + values->data[11];
   magJ = sqrt( Jx*Jx + Jy*Jy + Jz*Jz );
   
-  if(debugPK)printf("J at merger: %e, %e, %e (mag = %e)\n", Jx, Jy, Jz, magJ);
+  if(debugPK){ printf("J at merger: %e, %e, %e (mag = %e)\n", Jx, Jy, Jz, magJ); fflush(NULL); }
   
   /* WaveStep 1.3: calculate chi and kappa at merger */
   chi1J = values->data[6]*Jx + values->data[7] *Jy + values->data[8] *Jz;
@@ -2692,6 +2696,7 @@ if( !NoComputeInitialConditions )
   deltaNQC = 4.0;
   printf("Stas: Again-> kappaJL = %.16e, combsize = %.16e, deltaNQC = %.16e, tAttach = %.16e \n", 
          kappaJL, combSize, deltaNQC, tAttach); 
+  fflush(NULL);
 
   /* WaveStep 1.5: get  */
   // PK: This calculation has been moved above before omegaHi is allocated
@@ -2728,7 +2733,8 @@ if( !NoComputeInitialConditions )
   if(debugPK)printf("J-frameEx = [%e\t%e\t%e]\n", JframeEx[0], JframeEx[1], JframeEx[2]);
   if(debugPK)printf("J-frameEy = [%e\t%e\t%e]\n", JframeEy[0], JframeEy[1], JframeEy[2]);
   if(debugPK)printf("J-frameEz = [%e\t%e\t%e]\n", JframeEz[0], JframeEz[1], JframeEz[2]);
-  
+  if(debugPK)fflush(NULL);
+
   /* WaveStep 2
    * Calculate quasi-nonprecessing waveforms
    */

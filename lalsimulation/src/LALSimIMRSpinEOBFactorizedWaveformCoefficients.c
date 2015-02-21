@@ -95,7 +95,8 @@ static int XLALSimIMREOBCalcSpinFacWaveformCoefficients(
   {
     printf("In XLALSimIMREOBCalcSpinFacWaveformCoefficients: Renewing hlm coefficients.\n");
     //FIXME
-    printf("PK:: chiS = %.12e, chiA = %.12e\n", chiS, chiA);
+    printf("PK:: chiS = %.12e, chiA = %.12e, a = %.12e (UNUSED), EOBVERSION = %d\n", 
+			chiS, chiA, tmpa, SpinAlignedEOBversion);
   }
   REAL8 a = tmpa * 0;
   REAL8 eta2 = eta*eta;
@@ -263,8 +264,20 @@ static int XLALSimIMREOBCalcSpinFacWaveformCoefficients(
   else
   {
     coeffs->f21v1     = -3.*chiA/2.;
-    coeffs->f21v3     = (chiS*dM*(427.+79.*eta)+chiA*(147.+280.*dM*dM+1251.*eta))/84.;
-  }
+    switch ( SpinAlignedEOBversion )
+    {
+      case 1:
+        coeffs->f21v3   = 0.0;
+        break;
+      case 2:
+        coeffs->f21v3     = (chiS*dM*(427.+79.*eta)+chiA*(147.+280.*dM*dM+1251.*eta))/84.;
+        break;
+      default:
+        XLALPrintError( "XLAL Error - %s: wrong SpinAlignedEOBversion value, must be 1 or 2!\n", __func__ );
+        XLAL_ERROR( XLAL_EINVAL );
+        break;
+    }
+ }
 
   /* l = 3, Eqs. A9a - A9c for rho, Eqs. A15b and A15c for f,
      Eqs. 22 - 24 of DIN and Eqs. 27c - 27e of PBFRT for delta */

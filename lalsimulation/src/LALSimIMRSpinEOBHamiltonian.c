@@ -78,7 +78,7 @@ static int XLALSimIMRCalculateSpinEOBHCoeffs(
         SpinEOBHCoeffs *coeffs,
         const REAL8    eta,
         const REAL8    a,
-        const UINT4    SpinAlignedEOBversion      
+        const UINT4    SpinAlignedEOBversion
         );
 
 static REAL8 XLALSimIMRSpinEOBHamiltonianDeltaT( 
@@ -114,21 +114,21 @@ static REAL8 XLALSimIMRSpinEOBCalcOmega(
                       SpinEOBParams        *funcParams
                       );
 
-static REAL8 XLALSimIMRSpinEOBNonKeplerCoeff(
-                      const REAL8           values[],
-                      SpinEOBParams         *funcParams
-                      );
-
 static int XLALSpinHcapRvecDerivative(
                  double UNUSED     t,         /**<< UNUSED */
                  const  REAL8      values[],  /**<< Dynamical variables */
                  REAL8             dvalues[], /**<< Time derivatives of variables (returned) */
                  void             *funcParams /**<< EOB parameters */
                                ) UNUSED;
-                              
-static double GSLSpinHamiltonianWrapperFordHdpphi( double x, void *params );
 
 static double GSLSpinHamiltonianWrapperForRvecDerivs( double x, void *params );
+
+static double GSLSpinHamiltonianWrapperFordHdpphi( double x, void *params );
+
+static REAL8 XLALSimIMRSpinEOBNonKeplerCoeff(
+                      const REAL8           values[],
+                      SpinEOBParams         *funcParams
+                      );
 
 
 
@@ -1805,7 +1805,6 @@ static double GSLSpinHamiltonianWrapperFordHdpphi( double x, void *params )
   
   return SpinEOBH;
 }
-
 
 /**
  * Function to calculate the non-Keplerian coefficient for the PRECESSING EOB model.
