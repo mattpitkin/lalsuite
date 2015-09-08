@@ -71,17 +71,18 @@ pkginclude_HEADERS = \
 	LALSimulationVCSInfoHeader.h
 
 noinst_HEADERS = \
+	LALSimIMRSpinEOB.h\
+	LALSimIMREOBNRv2.h \
+	LALSimFindAttachTime.h\
 	LALSimIMREOBFactorizedWaveform.c \
 	LALSimIMREOBHybridRingdown.c \
 	LALSimIMREOBNQCCorrection.c \
-	LALSimIMREOBNRv2.h \
 	LALSimIMREOBNewtonianMultipole.c \
 	LALSimInspiralPNCoefficients.c \
 	LALSimInspiraldEnergyFlux.c \
 	LALSimIMRSpinEOBHamiltonian.c \
 	LALSimIMRSpinEOBHcapNumericalDerivative.c \
 	LALSimIMRSpinAlignedEOBHcapDerivative.c \
-	LALSimIMRSpinEOB.h \
 	LALSimIMRSpinEOBInitialConditions.c \
 	LALSimIMRSpinEOBAuxFuncs.c \
 	LALSimIMRSpinEOBFactorizedWaveform.c \
@@ -154,7 +155,8 @@ liblalsimulation_la_SOURCES = \
 	check_series_macros.h \
 	check_waveform_macros.h \
 	unicorn.xpm \
-	LALSimInspiralHGimri.c
+	LALSimInspiralHGimri.c\
+	LALSimFindAttachTime.c
 
 nodist_liblalsimulation_la_SOURCES = LALSimulationBuildInfo.c
 

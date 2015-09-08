@@ -81,6 +81,22 @@ int XLALSimIMREOBNRv2DominantMode(REAL8TimeSeries **hplus, REAL8TimeSeries **hcr
 int XLALSimIMREOBNRv2AllModes(REAL8TimeSeries **hplus, REAL8TimeSeries **hcross, const REAL8 phiC, const REAL8 deltaT, const REAL8 m1SI, const REAL8 m2SI, const REAL8 fLower, const REAL8 distance, const REAL8 inclination);
 SphHarmTimeSeries *XLALSimIMREOBNRv2Modes(const REAL8 phiRef, const REAL8 deltaT, const REAL8 m1, const REAL8 m2, const REAL8 fLower, const REAL8 distance);
 
+int XLALSimIMRPhenomP(
+  COMPLEX16FrequencySeries **hptilde,   /**< Output: Frequency-domain waveform h+ */
+  COMPLEX16FrequencySeries **hctilde,   /**< Output: Frequency-domain waveform hx */
+  const REAL8 chi_eff,                  /**< Effective aligned spin */
+  const REAL8 chip,                     /**< Effective spin in the orbital plane */
+  const REAL8 eta,                      /**< Symmetric mass-ratio */
+  const REAL8 thetaJ,                   /**< Angle between J0 and line of sight (z-direction) */
+  const REAL8 Mtot_SI,                  /**< Total mass of binary (kg) */
+  const REAL8 distance,                 /**< Distance of source (m) */
+  const REAL8 alpha0,                   /**< Initial value of alpha angle */
+  const REAL8 phic,                     /**< Orbital phase at the peak of the underlying non precessing model (rad) */
+  const REAL8 deltaF,                   /**< Sampling frequency (Hz) */
+  const REAL8 f_min,                    /**< Starting GW frequency (Hz) */
+  const REAL8 f_max,                   	/**< End frequency; 0 defaults to ringdown cutoff freq */
+  const REAL8 f_ref                     /**< Reference frequency */
+);
 
 /* in module LALSimIMRSpinAlignedEOB.c */
 
@@ -94,7 +110,38 @@ int XLALSimIMRSpinAlignedEOBWaveform(REAL8TimeSeries **hplus, REAL8TimeSeries **
 int XLALSimIMRSEOBNRv1ROMEffectiveSpin(struct tagCOMPLEX16FrequencySeries **hptilde, struct tagCOMPLEX16FrequencySeries **hctilde, REAL8 phiRef, REAL8 deltaF, REAL8 fLow, REAL8 fHigh, REAL8 fRef, REAL8 distance, REAL8 inclination, REAL8 m1SI, REAL8 m2SI, REAL8 chi);
 int XLALSimIMRSEOBNRv1ROMEffectiveSpinFrequencySequence(struct tagCOMPLEX16FrequencySeries **hptilde, struct tagCOMPLEX16FrequencySeries **hctilde, const REAL8Sequence *freqs, REAL8 phiRef, REAL8 fRef, REAL8 distance, REAL8 inclination, REAL8 m1SI, REAL8 m2SI, REAL8 chi);
 
-/* in module LALSimIMRSEOBNRv1ROMDoubleSpin.c */
+
+int XLALSimIMRSpinEOBWaveformAll(
+        REAL8TimeSeries **hplus,
+        REAL8TimeSeries **hcross,
+        REAL8Vector     **dynamicsHi, /**<< Here we store and return the seob dynamics for high sampling (end of inspiral) */
+        SphHarmTimeSeries **hlmPTSout, /**<< Here we store and return the PWave (high sampling) */
+        SphHarmTimeSeries **hlmPTSHi, /**<< Here we store and return the JWave (high sampling) */
+        SphHarmTimeSeries **hIMRlmJTSHi, /**<< Here we store and return the JWaveIMR (high sampling) */
+        REAL8Vector     **AttachParams,   /**<< Parameters of RD attachment: */ 
+        //LIGOTimeGPS     *tc,
+        const REAL8      phiC,
+        const REAL8     deltaT,
+        const REAL8     m1SI,
+        const REAL8     m2SI,
+        const REAL8     fMin,
+        const REAL8     r,
+        const REAL8     inc,
+        const REAL8     INspin1x,
+        const REAL8     INspin1y,
+        const REAL8     INspin1z,
+        const REAL8     INspin2x,
+        const REAL8     INspin2y,
+        const REAL8     INspin2z
+     );
+
+
+
+
+/*
+ * SEOBNRv1 reduced order models
+ * See CQG 31 195010, 2014, arXiv:1402.4146 for details.
+ */
 
 int XLALSimIMRSEOBNRv1ROMDoubleSpin(struct tagCOMPLEX16FrequencySeries **hptilde, struct tagCOMPLEX16FrequencySeries **hctilde, REAL8 phiRef, REAL8 deltaF, REAL8 fLow, REAL8 fHigh, REAL8 fRef, REAL8 distance, REAL8 inclination, REAL8 m1SI, REAL8 m2SI, REAL8 chi1, REAL8 chi2);
 int XLALSimIMRSEOBNRv1ROMDoubleSpinFrequencySequence(struct tagCOMPLEX16FrequencySeries **hptilde, struct tagCOMPLEX16FrequencySeries **hctilde, const REAL8Sequence *freqs, REAL8 phiRef, REAL8 fRef, REAL8 distance, REAL8 inclination, REAL8 m1SI, REAL8 m2SI, REAL8 chi1, REAL8 chi2);

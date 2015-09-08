@@ -32,6 +32,7 @@
 #include <math.h>
 #include <complex.h>
 #include "LALSimIMREOBNRv2.h"
+/*#include "LALSimIMRSpinEOB.h"*/
 
 /* Include static functions */
 #include "LALSimInspiraldEnergyFlux.c"
