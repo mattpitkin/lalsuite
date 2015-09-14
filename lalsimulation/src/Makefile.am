@@ -93,7 +93,10 @@ noinst_HEADERS = \
 	LALSimIMRPhenomD_internals.c \
 	LALSimIMRPhenomD.h \
 	LALSimIMRPhenomP.c \
-	LALSimIMRSEOBNRROMUtilities.c
+        LALSimFindAttachTime.h \
+	LALSimIMRSEOBNRROMUtilities.c \
+        LALSimIMRSpinEOBFactorizedWaveformCoefficients.c \
+        LALSimIMRSpinEOBHcapNumericalDerivative.h
 
 lib_LTLIBRARIES = liblalsimulation.la
 liblalsimulation_la_SOURCES = \
@@ -154,6 +157,7 @@ liblalsimulation_la_SOURCES = \
 	check_series_macros.h \
 	check_waveform_macros.h \
 	unicorn.xpm \
+        LALSimFindAttachTime.c \
 	LALSimInspiralHGimri.c
 
 nodist_liblalsimulation_la_SOURCES = LALSimulationBuildInfo.c
