@@ -95,8 +95,7 @@ noinst_HEADERS = \
 	LALSimIMRPhenomP.c \
         LALSimFindAttachTime.h \
 	LALSimIMRSEOBNRROMUtilities.c \
-        LALSimIMRSpinEOBFactorizedWaveformCoefficients.c \
-        LALSimIMRSpinEOBHcapNumericalDerivative.h
+        LALSimIMRSpinEOBFactorizedWaveformCoefficients.c 
 
 lib_LTLIBRARIES = liblalsimulation.la
 liblalsimulation_la_SOURCES = \
