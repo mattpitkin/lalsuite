@@ -22,6 +22,8 @@ pymodule_PYTHON = \
 	fits.py \
 	marker.py \
 	plot.py \
+	lalinference_pipe_utils.py \
+	nest2pos.py \
 	git_version.py \
 	$(END_OF_LIST)
 
