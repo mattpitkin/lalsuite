@@ -238,7 +238,7 @@ def tau0tau3_bound(flow, **constraints):
     # FIXME: As this is discrete, this can cause the bank sizes to be smaller
     # than expected. Raising this to 1e5, raising it higher starts to cause
     # slowdown as computing m2 from m1 and mchirp is expensive.
-    npts = 1e5
+    npts = 1e4
 
     # draw constant component mass lines
     m1min, m1max = constraints['mass1']
@@ -281,6 +281,32 @@ def tau0tau3_bound(flow, **constraints):
     lims_tau3 = [min( lims_tau3 ), max( lims_tau3 )]
 
     return lims_tau0, lims_tau3
+
+
+def urand_mtotal_generator(mtotal_min, mtotal_max):
+    """
+    This is a generator for random total mass values corresponding to a
+    uniform distribution of mass pairs in (tau0, tau3) space.  See also
+    urand_eta_generator(), and see LIGO-T1300127 for details.
+    """
+    alpha = mtotal_min*(1-(mtotal_min/mtotal_max)**(7./3.))**(-3./7.)
+    beta = (mtotal_min/mtotal_max)**(7./3.)/(1-(mtotal_min/mtotal_max)**(7./3.))
+    n = -3./7.
+    while 1:   # NB: "while 1" is inexplicably much faster than "while True"
+        yield alpha*(uniform(0, 1)+beta)**n
+
+
+def urand_eta_generator(eta_min, eta_max):
+    """
+    This is a generator for random eta (symmetric mass ratio) values
+    corresponding to a uniform distribution of mass pairs in (tau0, tau3)
+    space.  See also urand_mtotal_generator(), and see LIGO-T1300127 for
+    details.
+    """
+    alpha = eta_min/sqrt(1-(eta_min/eta_max)**2)
+    beta = (eta_min/eta_max)**2/(1-(eta_min/eta_max)**2)
+    while 1:   # NB: "while 1" is inexplicably much faster than "while True"
+        yield alpha/sqrt(uniform(0, 1)+beta)
 
 
 def urand_tau0tau3_generator(flow, **constraints):
@@ -452,12 +478,74 @@ def aligned_spin_param_generator(flow, **kwargs):
         # get args
         spin1_bounds = kwargs.pop('spin1', (-1., 1.))
         spin2_bounds = kwargs.pop('spin2', (-1., 1.))
-        # the rest will be checked in the call to urand_tau0tau3_generator
 
+        # the rest will be checked in the call to urand_tau0tau3_generator
         for mass1, mass2 in urand_tau0tau3_generator(flow, **kwargs):
-            spin1 = uniform(*spin1_bounds)
-            spin2 = uniform(*spin2_bounds)
+
+            mtot = mass1 + mass2
+            chis_min = (mass1*spin1_bounds[0] + mass2*spin2_bounds[0])/mtot
+            chis_max = (mass1*spin1_bounds[1] + mass2*spin2_bounds[1])/mtot
+            chis = uniform(chis_min, chis_max)
+
+            s2min = max(spin2_bounds[0], (mtot*chis - mass1*spin1_bounds[1])/mass2)
+            s2max = min(spin2_bounds[1], (mtot*chis - mass1*spin1_bounds[0])/mass2)
+
+            spin2 = uniform(s2min, s2max)
+            spin1 = (chis*mtot - mass2*spin2)/mass1
+
             yield mass1, mass2, spin1, spin2
+
+def double_spin_precessing_param_generator(flow, **kwargs):
+    """
+    Currently a stub to test precessing template generation.
+    """
+    spin1_bounds = kwargs.pop('spin1', (0., 0.9))
+    spin2_bounds = kwargs.pop('spin2', (0., 0.9))
+
+    for mass1, mass2 in urand_tau0tau3_generator(flow, **kwargs):
+        # Choose the rest from hardcoded limits
+        spin1mag = uniform(*spin1_bounds)
+        spin2mag = uniform(*spin2_bounds)
+        spin1ang1 = uniform(0, numpy.pi)
+        spin1ang2 = uniform(0, 2*numpy.pi)
+        spin2ang1 = uniform(0, numpy.pi)
+        spin2ang2 = uniform(0, 2*numpy.pi)
+        spin1z = spin1mag * numpy.cos(spin1ang1)
+        spin1x = spin1mag * numpy.sin(spin1ang1) * numpy.cos(spin1ang2)
+        spin1y = spin1mag * numpy.sin(spin1ang1) * numpy.sin(spin1ang2)    
+        spin2z = spin2mag * numpy.cos(spin2ang1)
+        spin2x = spin2mag * numpy.sin(spin2ang1) * numpy.cos(spin2ang2)
+        spin2y = spin2mag * numpy.sin(spin2ang1) * numpy.sin(spin2ang2)
+        # Check orientation angles use correct limits
+        theta = uniform(0, numpy.pi)
+        phi = uniform(0, 2*numpy.pi)
+        psi = uniform(0, 2*numpy.pi)
+        iota = uniform(0, numpy.pi)
+        yield mass1, mass2, spin1x, spin1y, spin1z, spin2x, spin2y, spin2z, theta, phi, iota, psi
+
+
+def single_spin_precessing_param_generator(flow, **kwargs):
+    """
+    Currently a stub to test precessing template generation.
+    """
+    spin1_bounds = kwargs.pop('spin1', (0., 0.9))
+    spin2_bounds = kwargs.pop('spin2', (0., 0.9))
+
+    for mass1, mass2 in urand_tau0tau3_generator(flow, **kwargs):
+        # Choose the rest from hardcoded limits
+        spin1mag = uniform(*spin1_bounds)
+        spin1ang1 = uniform(0, numpy.pi)
+        spin1ang2 = uniform(0, 2*numpy.pi)
+        spin1z = spin1mag * numpy.cos(spin1ang1)
+        spin1x = spin1mag * numpy.sin(spin1ang1) * numpy.cos(spin1ang2)
+        spin1y = spin1mag * numpy.sin(spin1ang1) * numpy.sin(spin1ang2)
+
+        # Check orientation angles use correct limits
+        theta = uniform(0, numpy.pi)
+        phi = uniform(0, 2*numpy.pi)
+        psi = uniform(0, 2*numpy.pi)
+        iota = uniform(0, numpy.pi)
+        yield mass1, mass2, spin1x, spin1y, spin1z, theta, phi, iota, psi
 
 
 def SpinTaylorT4_param_generator(flow, **kwargs):
@@ -467,9 +555,16 @@ def SpinTaylorT4_param_generator(flow, **kwargs):
 proposals = {"IMRPhenomB":IMRPhenomB_param_generator,
              "IMRPhenomC":IMRPhenomC_param_generator,
              "IMRPhenomD":aligned_spin_param_generator,
+             "TaylorF2": aligned_spin_param_generator,
+             "IMRPhenomP":double_spin_precessing_param_generator,
+             "IMRPhenomPv2":double_spin_precessing_param_generator,
              "TaylorF2RedSpin":aligned_spin_param_generator,
              "EOBNRv2":nonspin_param_generator,
              "SEOBNRv1":aligned_spin_param_generator,
              "SEOBNRv2":aligned_spin_param_generator,
              "SEOBNRv2_ROM_DoubleSpin":aligned_spin_param_generator,
-             "SpinTaylorT4":SpinTaylorT4_param_generator}
+             "SEOBNRv2_ROM_DoubleSpin_HI":aligned_spin_param_generator,
+             "SpinTaylorT4":SpinTaylorT4_param_generator,
+             "SpinTaylorF2":single_spin_precessing_param_generator,
+             "SpinTaylorT2Fourier":double_spin_precessing_param_generator,
+             "SEOBNRv3":double_spin_precessing_param_generator}

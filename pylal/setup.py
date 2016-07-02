@@ -15,22 +15,13 @@ import time
 from numpy.lib.utils import get_include as numpy_get_include
 
 
-#
-# check python version
-#
-
-if sys.version_info[0] != 2 or sys.version_info[1] < 4:
-	log.error("Python version is %s.  pylal requires a Python version such that 2.4 <= version < 3" % sys.version)
-	sys.exit(1)
-
-
 class PkgConfig(object):
 	def __init__(self, names):
 		def stripfirsttwo(string):
 			return string[2:]
-		self.libs = map(stripfirsttwo, os.popen("pkg-config --libs-only-l %s" % names).read().split())
-		self.libdirs = map(stripfirsttwo, os.popen("pkg-config --libs-only-L %s" % names).read().split())
-		self.incdirs = map(stripfirsttwo, os.popen("pkg-config --cflags-only-I %s" % names).read().split())
+		self.libs = list(map(stripfirsttwo, os.popen("pkg-config --libs-only-l %s" % names).read().split()))
+		self.libdirs = list(map(stripfirsttwo, os.popen("pkg-config --libs-only-L %s" % names).read().split()))
+		self.incdirs = list(map(stripfirsttwo, os.popen("pkg-config --cflags-only-I %s" % names).read().split()))
 		self.extra_cflags = os.popen("pkg-config --cflags-only-other %s" % names).read().split()
 
 gsl_pkg_config = PkgConfig("gsl")
@@ -630,11 +621,15 @@ setup(
 		os.path.join("bin", "ring_post"),
 		os.path.join("bin", "ligolw_rinca_to_coinc"),
 		os.path.join("bin", "cbcBayesPostProc.py"),
+                os.path.join("bin", "cbcBayesPlotSpinDisk.py"),
+                os.path.join("bin", "cbcBayesBurstPostProc.py"),
 		os.path.join("bin", "cbcBayesCompPos.py"),
 		os.path.join("bin", "cbcBayesDIEvidence.py"),
 		os.path.join("bin", "cbcBayesInjProc.py"),
 		os.path.join("bin", "cbcBayesThermoInt.py"),
+                os.path.join("bin", "cbcBayesBurstPPAnalysis.py"),
 		os.path.join("bin", "cbcBayesPPAnalysis.py"),
+                os.path.join("bin", "cbcBayesPosToSimBurst.py"),
 		os.path.join("bin", "cbcBayesPosToSimInspiral.py"),
 		os.path.join("bin", "pulsarBayesPostProc.py"),
 		os.path.join("bin", "processing_kdtreeSky.py"),
@@ -681,5 +676,15 @@ setup(
 	data_files = [ ("etc", [
 		os.path.join("etc", "pylal-user-env.sh"),
 		os.path.join("etc", "pylal-user-env.csh"),
-		] ) ]
+		] ) ],
+    classifiers = [
+        'Development Status :: 7 - Inactive',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)',
+        'Operating System :: POSIX',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 2 :: Only',
+        'Topic :: Scientific/Engineering :: Astronomy',
+        'Topic :: Scientific/Engineering :: Physics'
+    ]
 )

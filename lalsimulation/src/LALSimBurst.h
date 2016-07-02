@@ -55,6 +55,8 @@
  * ============================================================================
  */
 
+#ifndef _LALSIMBURST_H
+#define _LALSIMBURST_H
 
 #include <gsl/gsl_rng.h>
 #include <lal/LALDatatypes.h>
@@ -92,6 +94,7 @@ int XLALGenerateBandAndTimeLimitedWhiteNoiseBurst(
 	REAL8 frequency,
 	REAL8 bandwidth,
 	REAL8 eccentricity,
+	REAL8 phase,
 	REAL8 int_hdot_squared,
 	REAL8 delta_t,
 	gsl_rng *rng
@@ -139,7 +142,6 @@ int XLALSimBurstGaussian(
 	REAL8 delta_t
 );
 
-
 int XLALSimBurstImg(
 	REAL8TimeSeries **hplus,
 	REAL8TimeSeries **hcross, 
@@ -180,3 +182,4 @@ REAL8 XLALMeasureEoverRsquared(REAL8TimeSeries *, REAL8TimeSeries *);
 #elif defined(__cplusplus)
 }
 #endif
+#endif /*_LALSIMBURST_H */

@@ -11,6 +11,7 @@ pymodule_PYTHON = \
 	__init__.py \
 	command.py \
 	decorator.py \
+	distance.py \
 	filter.py \
 	ligolw.py \
 	ligolw_sky_map.py \
@@ -22,7 +23,7 @@ if HAVE_CHEALPIX
 if SWIG_BUILD_PYTHON
 pymodule_LTLIBRARIES = sky_map.la
 sky_map_la_CPPFLAGS = $(AM_CPPFLAGS) $(SWIG_PYTHON_CPPFLAGS) -I$(top_srcdir)/src
-sky_map_la_CFLAGS = $(SWIG_PYTHON_CFLAGS) -Wno-error
+sky_map_la_CFLAGS = $(AM_CFLAGS) $(SWIG_PYTHON_CFLAGS) -Wno-error
 sky_map_la_LDFLAGS = -shared -module -avoid-version
 sky_map_la_LIBADD = $(top_builddir)/src/liblalinference.la
 endif

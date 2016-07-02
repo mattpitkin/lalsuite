@@ -74,14 +74,10 @@ lsctables.CoincMapTable.RowType = lsctables.CoincMap = xlaltools.CoincMap
 class SnglInspiral(snglinspiraltable.SnglInspiralTable):
 	__slots__ = ()
 
-	def __eq__(self, other):
-		return not (
-			cmp(self.ifo, other.ifo) or
-			cmp(self.end, other.end) or
-			cmp(self.mass1, other.mass1) or
-			cmp(self.mass2, other.mass2) or
-			cmp(self.search, other.search)
-		)
+	spin1 = lsctables.SnglInspiral.spin1
+	spin2 = lsctables.SnglInspiral.spin2
+
+	__eq__ = lsctables.SnglInspiral.__eq__
 
 	def __cmp__(self, other):
 		# compare self's end time to the LIGOTimeGPS instance
@@ -273,7 +269,7 @@ class InspiralEventList(snglcoinc.EventList):
 		# avoid doing type conversion in loops
 		self.dt = LIGOTimeGPS(dt * 1.01)
 
-	def get_coincs(self, event_a, offset_a, light_travel_time, e_thinca_parameter, comparefunc):
+	def get_coincs(self, event_a, offset_a, light_travel_time, threshold, comparefunc):
 		#
 		# event_a's end time, with time shift applied
 		#
@@ -287,7 +283,7 @@ class InspiralEventList(snglcoinc.EventList):
 		# a subset of the full list)
 		#
 
-		return [event_b for event_b in self[bisect.bisect_left(self, end - self.dt) : bisect.bisect_right(self, end + self.dt)] if not comparefunc(event_a, offset_a, event_b, self.offset, light_travel_time, e_thinca_parameter)]
+		return [event_b for event_b in self[bisect.bisect_left(self, end - self.dt) : bisect.bisect_right(self, end + self.dt)] if not comparefunc(event_a, offset_a, event_b, self.offset, light_travel_time, threshold)]
 
 
 #
@@ -299,7 +295,7 @@ class InspiralEventList(snglcoinc.EventList):
 #
 
 
-def inspiral_max_dt(events, e_thinca_parameter):
+def inspiral_ethinca_max_dt(events, e_thinca_parameter):
 	"""
 	Given an e-thinca parameter and a list of sngl_inspiral events,
 	return the greatest \Delta t that can separate two events and they
@@ -330,12 +326,13 @@ def inspiral_coinc_compare(a, offseta, b, offsetb, light_travel_time, e_thinca_p
 	return not coincident
 
 
-def inspiral_coinc_compare_exact(a, offseta, b, offsetb, light_travel_time, e_thinca_parameter):
+def inspiral_coinc_compare_exact(a, offseta, b, offsetb, light_travel_time, delta_t):
 	"""
-	Returns False (a & b are coincident) if they pass the ellipsoidal
-	thinca test and their test masses are equal.
+	Returns False (a & b are coincident) if they have the same masses
+	and spins (assumed to indicate the templates are identical) and
+	their end times are within delta_t of each other.
 	"""
-	return (a.mass1 != b.mass1) or (a.mass2 != b.mass2) or inspiral_coinc_compare(a, offseta, b, offsetb, light_travel_time, e_thinca_parameter)
+	return abs(a.end + offseta - b.end - offsetb) > light_travel_time + delta_t or (a.mass1 != b.mass1) or (a.mass2 != b.mass2) or (a.spin1 != b.spin1).any() or (a.spin2 != b.spin2).any()
 
 
 #
@@ -363,7 +360,7 @@ def default_ntuple_comparefunc(events, offset_vector):
 #
 
 
-def replicate_threshold(e_thinca_parameter, instruments):
+def replicate_threshold(threshold, instruments):
 	"""
 	From a single threshold and a list of instruments, return a
 	dictionary whose keys are every instrument pair (both orders), and
@@ -375,9 +372,9 @@ def replicate_threshold(e_thinca_parameter, instruments):
 	{("H1", "H2"): 6, ("H2", "H1"): 6}
 	"""
 	instruments = sorted(instruments)
-	thresholds = dict((pair, e_thinca_parameter) for pair in iterutils.choices(instruments, 2))
+	thresholds = dict((pair, threshold) for pair in iterutils.choices(instruments, 2))
 	instruments.reverse()
-	thresholds.update(dict((pair, e_thinca_parameter) for pair in iterutils.choices(instruments, 2)))
+	thresholds.update(dict((pair, threshold) for pair in iterutils.choices(instruments, 2)))
 	return thresholds
 
 
@@ -387,13 +384,13 @@ def ligolw_thinca(
 	coinc_definer_row,
 	event_comparefunc,
 	thresholds,
+	max_dt,
 	ntuple_comparefunc = default_ntuple_comparefunc,
 	veto_segments = None,
 	trigger_program = u"inspiral",
 	likelihood_func = None,
 	likelihood_params_func = None,
-	verbose = False,
-	max_dt = None
+	verbose = False
 ):
 	#
 	# prepare the coincidence table interface.
@@ -420,8 +417,6 @@ def ligolw_thinca(
 	# set the \Delta t parameter on all the event lists
 	#
 
-	if max_dt is None:
-		max_dt = inspiral_max_dt(lsctables.SnglInspiralTable.get_table(xmldoc), thresholds)
 	if verbose:
 		print >>sys.stderr, "event bisection search window will be %.16g s" % max_dt
 	for eventlist in eventlists.values():

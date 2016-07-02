@@ -7,6 +7,7 @@ include $(top_srcdir)/gnuscripts/lalsuite_vcs_info.am
 SUBDIRS = \
 	bayestar \
 	rapid_pe \
+	imrtgr \
 	$(END_OF_LIST)
 
 vcs_info_sources = git_version.py
@@ -19,7 +20,10 @@ pymodule_PYTHON = \
 	__init__.py \
 	cmap.py \
 	fits.py \
+	marker.py \
 	plot.py \
+	lalinference_pipe_utils.py \
+	nest2pos.py \
 	git_version.py \
 	$(END_OF_LIST)
 

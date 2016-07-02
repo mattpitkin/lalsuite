@@ -63,8 +63,19 @@ import os
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('BAYESTAR')
 
+methods = '''
+    toa_phoa_snr
+    toa_snr_mcmc
+    toa_phoa_snr_mcmc
+    toa_snr_mcmc_kde
+    toa_phoa_snr_mcmc_kde
+    '''.split()
+default_method = 'toa_phoa_snr'
+command.skymap_parser.add_argument(
+    '--method', choices=methods, default=default_method,
+    help='Sky localization method [default: %(default)s]')
 parser = command.ArgumentParser(
-    parents=[command.waveform_parser, command.prior_parser])
+    parents=[command.waveform_parser, command.prior_parser, command.skymap_parser])
 parser.add_argument('-N', '--dry-run', default=False, action='store_true',
     help='Dry run; do not update GraceDB entry [default: %(default)s]')
 parser.add_argument('-o', '--output', metavar='FILE.fits[.gz]',
@@ -118,6 +129,7 @@ if not opts.dry_run:
 import os
 import shutil
 import tempfile
+from lalinference.bayestar import distance
 from lalinference.bayestar.ligolw_sky_map import gracedb_sky_map
 from lalinference import fits
 
@@ -131,12 +143,22 @@ try:
     # download psd.xml.gz
     psd_file = gracedb.files(graceid, "psd.xml.gz")
 
+    if opts.chain_dump:
+        chain_dump = opts.output.replace('.fits.gz', '').replace('.fits', '') + '.chain.npy'
+    else:
+        chain_dump = None
+
     # perform sky localization
     log.info("starting sky localization")
     sky_map, epoch, elapsed_time, instruments = gracedb_sky_map(
         coinc_file, psd_file, opts.waveform, opts.f_low,
         opts.min_distance, opts.max_distance, opts.prior_distance_power,
-        phase_convention=opts.phase_convention)
+        phase_convention=opts.phase_convention, nside=opts.nside,
+        f_high_truncate=opts.f_high_truncate,
+        method=opts.method, chain_dump=chain_dump)
+    prob, distmu, distsigma, _ = sky_map
+    distmean, diststd = distance.parameters_to_marginal_moments(
+        prob, distmu, distsigma)
     log.info("sky localization complete")
 
     # upload FITS file
@@ -147,12 +169,13 @@ try:
             creator=parser.prog, objid=str(graceid),
             url='https://gracedb.ligo.org/events/{0}'.format(graceid),
             runtime=elapsed_time, instruments=instruments,
+            distmean=distmean, diststd=diststd,
             origin='LIGO/Virgo', nest=True)
         if not opts.dry_run:
             gracedb.writeLog(graceid, "INFO:BAYESTAR:uploaded sky map",
                 filename=fitspath, tagname=("sky_loc", "lvem"))
         else:
-            os.rename(fitspath, os.path.join('.', opts.output))
+            command.rename(fitspath, os.path.join('.', opts.output))
     finally:
         shutil.rmtree(fitsdir)
 except:

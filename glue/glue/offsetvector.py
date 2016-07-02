@@ -61,7 +61,7 @@ class offsetvector(dict):
 	example the Python cmp() operation compares two offset vectors by
 	the relative offsets between instruments rather than their absolute
 	offsets, whereas the == operation compares two offset vectors by
-	demanding string equality.  There is also the ability to check if
+	demanding strict equality.  There is also the ability to check if
 	one offset vector is a subset of another one.
 	"""
 	@property
@@ -146,16 +146,31 @@ class offsetvector(dict):
 
 		>>> a = offsetvector({"H1": -10.1234567, "L1": 0.1})
 		>>> repr(a)
-		"offsetvector({'H1': -10.1234567, 'L1': 0.10000000000000001})"
+		"offsetvector({'H1': -10.1234567, 'L1': 0.1})"
 		>>> b = eval(repr(a))
 		>>> b
-		offsetvector({'H1': -10.1234567, 'L1': 0.10000000000000001})
+		offsetvector({'H1': -10.1234567, 'L1': 0.1})
 		>>> b == a
 		True
 		>>> b is a
 		False
 		"""
 		return "%s(%s)" % (self.__class__.__name__, dict.__repr__(self))
+
+	def __abs__(self):
+		"""
+		Returns max(offset) - min(offset).
+
+		Example:
+
+		>>> abs(offsetvector({"H1": 0.0, "H2": 0.0, "L1": 0.0}))
+		0.0
+		>>> abs(offsetvector({"H1": 10.0, "H2": 10.0, "L1": 10.0}))
+		0.0
+		>>> abs(offsetvector({'H1': 10.0, 'L1': 0.0, 'V1': -10.0}))
+		20.0
+		"""
+		return max(self.values()) - min(self.values())
 
 	def __cmp__(self, other):
 		"""

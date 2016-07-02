@@ -19,7 +19,8 @@ Plotting tools for drawing skymaps
 """
 from __future__ import division
 __author__ = "Leo Singer <leo.singer@ligo.org>"
-__all__ = ("AstroMollweideAxes", "reference_angle", "make_rect_poly", "heatmap")
+__all__ = ("AstroDegreesMollweideAxes", "AstroHoursMollweideAxes",
+           "AstroMollweideAxes", "reference_angle", "make_rect_poly", "heatmap")
 
 
 import warnings
@@ -36,7 +37,7 @@ from matplotlib import ticker
 from matplotlib.ticker import Formatter, FixedLocator
 from matplotlib.projections import projection_registry
 from matplotlib.transforms import Transform, Affine2D
-from matplotlib.projections.geo import MollweideAxes
+from matplotlib.projections.geo import LambertAxes, MollweideAxes
 from mpl_toolkits.basemap import _geoslib as geos
 from matplotlib import pyplot as plt
 import scipy.stats
@@ -119,14 +120,14 @@ else:
             return self.FixedMollweideTransform(resolution)
 
 
-class AstroMollweideAxes(FixedMollweideAxes):
-    """Mollweide axes with phi axis flipped and in hours from 24 to 0 instead of
-    in degrees from -180 to 180."""
+class AstroDegreesMollweideAxes(FixedMollweideAxes):
+    """Mollweide axes with phi axis flipped and in degrees from 360 to 0
+    instead of in degrees from -180 to 180."""
 
-    name = 'astro mollweide'
+    name = 'astro degrees mollweide'
 
     def cla(self):
-        super(AstroMollweideAxes, self).cla()
+        super(AstroDegreesMollweideAxes, self).cla()
         self.set_xlim(0, 2*np.pi)
 
     def set_xlim(self, *args, **kwargs):
@@ -134,30 +135,19 @@ class AstroMollweideAxes(FixedMollweideAxes):
         Axes.set_ylim(self, -np.pi / 2.0, np.pi / 2.0)
 
     def _get_core_transform(self, resolution):
-        return Affine2D().translate(-np.pi, 0.) + super(AstroMollweideAxes, self)._get_core_transform(resolution)
-
-    class RaFormatter(Formatter):
-        # Copied from matplotlib.geo.GeoAxes.ThetaFormatter and modified
-        def __init__(self, round_to=1.0):
-            self._round_to = round_to
-
-        def __call__(self, x, pos=None):
-            hours = (x / np.pi) * 12.
-            hours = round(15 * hours / self._round_to) * self._round_to / 15
-            return r"%0.0f$^\mathrm{h}$" % hours
+        return Affine2D().translate(-np.pi, 0.) + super(AstroDegreesMollweideAxes, self)._get_core_transform(resolution)
 
     def set_longitude_grid(self, degrees):
         # Copied from matplotlib.geo.GeoAxes.set_longitude_grid and modified
+        super(AstroDegreesMollweideAxes, self).set_longitude_grid(degrees)
         number = (360.0 / degrees) + 1
         self.xaxis.set_major_locator(
             FixedLocator(
                 np.linspace(0, 2*np.pi, number, True)[1:-1]))
-        self._longitude_degrees = degrees
-        self.xaxis.set_major_formatter(self.RaFormatter(degrees))
 
     def _set_lim_and_transforms(self):
         # Copied from matplotlib.geo.GeoAxes._set_lim_and_transforms and modified
-        super(AstroMollweideAxes, self)._set_lim_and_transforms()
+        super(AstroDegreesMollweideAxes, self)._set_lim_and_transforms()
 
         # This is the transform for latitude ticks.
         yaxis_stretch = Affine2D().scale(np.pi * 2.0, 1.0)
@@ -187,7 +177,82 @@ class AstroMollweideAxes(FixedMollweideAxes):
             .translate(0.5, 0.5)
 
 
+projection_registry.register(AstroDegreesMollweideAxes)
+
+
+class AstroHoursMollweideAxes(AstroDegreesMollweideAxes):
+    """Mollweide axes with phi axis flipped and in hours from 24 to 0 instead of
+    in degrees from -180 to 180."""
+
+    name = 'astro hours mollweide'
+
+    class RaFormatter(Formatter):
+        # Copied from matplotlib.geo.GeoAxes.ThetaFormatter and modified
+        def __init__(self, round_to=1.0):
+            self._round_to = round_to
+
+        def __call__(self, x, pos=None):
+            hours = (x / np.pi) * 12.
+            hours = round(15 * hours / self._round_to) * self._round_to / 15
+            return r"%0.0f$^\mathrm{h}$" % hours
+
+    def set_longitude_grid(self, degrees):
+        super(AstroHoursMollweideAxes, self).set_longitude_grid(degrees)
+        self.xaxis.set_major_formatter(self.RaFormatter(degrees))
+
+
+projection_registry.register(AstroHoursMollweideAxes)
+
+
+# For backward compatibility
+class AstroMollweideAxes(AstroHoursMollweideAxes):
+
+    name = 'astro mollweide'
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn("The AstroMollweideAxes ('astro mollweide') class has "
+                      "been deprecated. Please use AstroHoursMollweideAxes "
+                      "('astro hours mollweide') instead.", stacklevel=2)
+        super(AstroMollweideAxes, self).__init__(*args, **kwargs)
+
+
 projection_registry.register(AstroMollweideAxes)
+
+
+class AstroLambertAxes(LambertAxes):
+    name = 'astro lambert'
+
+    def cla(self):
+        super(AstroLambertAxes, self).cla()
+        self.set_xlim(0, 2*np.pi)
+
+    def set_xlim(self, *args, **kwargs):
+        Axes.set_xlim(self, 0., 2*np.pi)
+        Axes.set_ylim(self, -np.pi / 2.0, np.pi / 2.0)
+
+    def _get_core_transform(self, resolution):
+        return Affine2D().translate(-np.pi, 0.).scale(-1, 1) + super(AstroLambertAxes, self)._get_core_transform(resolution)
+
+    class RaFormatter(Formatter):
+        # Copied from matplotlib.geo.GeoAxes.ThetaFormatter and modified
+        def __init__(self, round_to=1.0):
+            self._round_to = round_to
+
+        def __call__(self, x, pos=None):
+            hours = (x / np.pi) * 12.
+            hours = round(15 * hours / self._round_to) * self._round_to / 15
+            return r"%0.0f$^\mathrm{h}$" % hours
+
+    def set_longitude_grid(self, degrees):
+        # Copied from matplotlib.geo.GeoAxes.set_longitude_grid and modified
+        number = (360.0 / degrees) + 1
+        self.xaxis.set_major_locator(
+            FixedLocator(
+                np.linspace(0, 2*np.pi, number, True)[1:-1]))
+        self.xaxis.set_major_formatter(self.RaFormatter(degrees))
+
+
+projection_registry.register(AstroLambertAxes)
 
 
 def wrapped_angle(a):
@@ -251,6 +316,9 @@ def cut_dateline(vertices):
 
     dateline_crossings = count_dateline_crossings(vertices[:, 0])
     if dateline_crossings % 2:
+        # FIXME: Use this simple heuristic to decide which pole to enclose.
+        sign_lat = np.sign(np.sum(vertices[:, 1]))
+
         # Determine index of the (unique) line segment that crosses the dateline.
         for i in range(len(vertices)):
             v0 = vertices[i - 1, :]
@@ -260,8 +328,8 @@ def cut_dateline(vertices):
                 lat = (np.pi - abs(v0[0])) / delta_lat * v0[1] + (np.pi - abs(v1[0])) / delta_lat * v1[1]
                 out_vertices += [np.vstack((vertices[:i, :], [
                     [np.sign(v0[0]) * np.pi, lat],
-                    [np.sign(v0[0]) * np.pi, np.sign(lat) * np.pi / 2],
-                    [-np.sign(v0[0]) * np.pi, np.sign(lat) * np.pi / 2],
+                    [np.sign(v0[0]) * np.pi, sign_lat * np.pi / 2],
+                    [-np.sign(v0[0]) * np.pi, sign_lat * np.pi / 2],
                     [-np.sign(v0[0]) * np.pi, lat],
                 ], vertices[i:, :]))]
                 break
@@ -315,6 +383,9 @@ def cut_prime_meridian(vertices):
     meridian_crossings = count_meridian_crossings(vertices[:, 0])
 
     if meridian_crossings % 2:
+        # FIXME: Use this simple heuristic to decide which pole to enclose.
+        sign_lat = np.sign(np.sum(vertices[:, 1]))
+
         # If there are an odd number of meridian crossings, then the polygon
         # encloses the pole. Any meridian-crossing edge has to be extended
         # into a curve following the nearest polar edge of the map.
@@ -340,8 +411,8 @@ def cut_prime_meridian(vertices):
                 # vertices.
                 out_vertices += [np.vstack((vertices[:i, :], [
                     [lon_0, lat],
-                    [lon_0, np.sign(lat) * np.pi / 2],
-                    [lon_1, np.sign(lat) * np.pi / 2],
+                    [lon_0, sign_lat * np.pi / 2],
+                    [lon_1, sign_lat * np.pi / 2],
                     [lon_1, lat],
                 ], vertices[i:, :]))]
 
@@ -469,6 +540,27 @@ def contour(func, *args, **kwargs):
     return ax
 
 
+def contourf(func, *args, **kwargs):
+    "Plot a function on the sphere using the current geographic projection."""
+
+    # Get current axis.
+    ax = plt.gca()
+
+    # Set up a regular grid tiling in right ascension and declination
+    x = np.linspace(*ax.get_xlim(), num=500)
+    y = np.linspace(*ax.get_ylim(), num=500)
+    xx, yy = np.meshgrid(x, y)
+
+    # Evaluate the function everywhere.
+    zz = func(xx, yy)
+
+    # Add contour plot
+    ax = plt.contourf(xx, yy, zz, *args, **kwargs)
+
+    # Done.
+    return ax
+
+
 def _healpix_lookup(map, lon, lat, nest=False, dlon=0):
     """Look up the value of a HEALPix map in the pixel containing the point
     with the specified longitude and latitude."""
@@ -496,6 +588,16 @@ def healpix_contour(map, *args, **kwargs):
         *args, **mpl_kwargs)
 
 
+def healpix_contourf(map, *args, **kwargs):
+    """Produce a contour plot from a HEALPix map."""
+    mpl_kwargs = dict(kwargs)
+    dlon = mpl_kwargs.pop('dlon', 0)
+    nest = mpl_kwargs.pop('nest', False)
+    return contourf(
+        functools.partial(_healpix_lookup, map, nest=nest, dlon=dlon),
+        *args, **mpl_kwargs)
+
+
 def colorbar():
     usetex = matplotlib.rcParams['text.usetex']
     locator = ticker.AutoLocator()
@@ -519,7 +621,7 @@ def colorbar():
     if usetex:
         fmt = '{{{0}}}{{{1}}}'
     else:
-        fmt = '{0}{1}'
+        fmt = u'{0}{1}'
     ticklabels[-1] = fmt.format(ticklabels[-1], formatter.get_offset())
     axis.set_ticklabels(ticklabels)
     last_ticklabel = axis.get_ticklabels()[-1]

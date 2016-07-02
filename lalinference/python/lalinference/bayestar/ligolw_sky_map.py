@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2013  Leo Singer
+# Copyright (C) 2013-2015  Leo Singer
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -33,12 +33,18 @@ from . import timing
 from . import sky_map
 import lal, lalsimulation
 
+# FIXME: Remove this Python 2 workaround.
+try:
+    long
+except NameError:
+    long = int
+
 log = logging.getLogger('BAYESTAR')
 
 
 def toa_phoa_snr_log_prior(
-        (ra, sin_dec, distance, u, twopsi, t),
-        min_distance, max_distance, prior_distance_power, max_abs_t):
+        params, min_distance, max_distance, prior_distance_power, max_abs_t):
+    ra, sin_dec, distance, u, twopsi, t = params
     return (
         prior_distance_power * np.log(distance)
         if 0 <= ra < 2*np.pi
@@ -95,12 +101,13 @@ def emcee_sky_map(
         nside *= 2
 
     if kde:
-        from sky_area.sky_area_clustering import ClusteredKDEPosterior
+        from sky_area.sky_area_clustering import ClusteredSkyKDEPosterior
+        ra = phi
         dec = 0.5 * np.pi - theta
         pts = np.column_stack((ra, dec))
         # Pass a random subset of 1000 points to the KDE, to save time.
         pts = np.random.permutation(pts)[:1000, :]
-        prob = ClusteredKDEPosterior(pts).as_healpix(nside)
+        prob = ClusteredSkyKDEPosterior(pts).as_healpix(nside)
 
     # Optionally save posterior sample chain to file.
     # Read back in with np.load().
@@ -115,7 +122,7 @@ def emcee_sky_map(
 
 
 def ligolw_sky_map(
-        sngl_inspirals, approximant, amplitude_order, phase_order, f_low,
+        sngl_inspirals, waveform, f_low,
         min_distance=None, max_distance=None, prior_distance_power=None,
         method="toa_phoa_snr", psds=None, nside=-1, chain_dump=None,
         phase_convention='antifindchirp'):
@@ -125,21 +132,19 @@ def ligolw_sky_map(
     Returns a 'NESTED' ordering HEALPix image as a Numpy array.
     """
 
+    # Ensure that sngl_inspiral is either a single template or a list of
+    # identical templates
+    for key in 'mass1 mass2 spin1x spin1y spin1z spin2x spin2y spin2z'.split():
+        if hasattr(sngl_inspirals[0], key):
+            value = getattr(sngl_inspirals[0], key)
+            if any(value != getattr(_, key) for _ in sngl_inspirals):
+                raise ValueError(
+                    '{0} field is not the same for all detectors'.format(key))
+
     ifos = [sngl_inspiral.ifo for sngl_inspiral in sngl_inspirals]
 
-    # Extract masses from the table.
-    mass1 = sngl_inspirals[0].mass1
-    if any(sngl_inspiral.mass1 != mass1
-            for sngl_inspiral in sngl_inspirals[1:]):
-        raise ValueError('mass1 field is not the same for all detectors')
-
-    mass2 = sngl_inspirals[0].mass2
-    if any(sngl_inspiral.mass2 != mass2
-            for sngl_inspiral in sngl_inspirals[1:]):
-        raise ValueError('mass2 field is not the same for all detectors')
-
     # Extract TOAs in GPS nanoseconds from table.
-    toas_ns = [long(sngl_inspiral.get_end().ns())
+    toas_ns = [sngl_inspiral.get_end().ns()
         for sngl_inspiral in sngl_inspirals]
 
     # Retrieve phases on arrival from table.
@@ -148,17 +153,20 @@ def ligolw_sky_map(
 
     # If using 'findchirp' phase convention rather than gstlal/mbta,
     # then flip signs of phases.
-    if phase_convention.lower() == 'findchirp':
+    if phase_convention.lower() == 'antifindchirp':
+        log.warn('Using anti-FINDCHIRP phase convention; inverting phases. '
+                 'This is currently the default and it is appropriate for '
+                 'gstlal and MBTA but not pycbc as of observing run 1 ("O1"). '
+                 'The default setting is likely to change in the future.')
         phoas = -phoas
-    else:
-        log.warn('Using anti-FINDCHIRP phase convention; flipping phases')
 
     # Extract SNRs from table.
     snrs = np.asarray([sngl_inspiral.snr
         for sngl_inspiral in sngl_inspirals])
 
     # Fudge factor for excess estimation error in gstlal_inspiral.
-    snrs *= 0.83
+    fudge = 0.83
+    snrs *= fudge
 
     # Look up physical parameters for detector.
     detectors = [lalsimulation.DetectorPrefixToLALDetector(str(ifo))
@@ -170,9 +178,11 @@ def ligolw_sky_map(
     if psds is None:
         psds = [timing.get_noise_psd_func(ifo) for ifo in ifos]
 
+    H = filter.sngl_inspiral_psd(sngl_inspirals[0], waveform, f_min=f_low)
+    HS = [filter.signal_psd_series(H, S) for S in psds]
+
     # Signal models for each detector.
-    signal_models = [timing.SignalModel(mass1, mass2, psd, f_low, approximant,
-        amplitude_order, phase_order) for psd in psds]
+    signal_models = [timing.SignalModel(_) for _ in HS]
 
     # Get SNR=1 horizon distances for each detector.
     horizons = np.asarray([signal_model.get_horizon_distance()
@@ -200,16 +210,8 @@ def ligolw_sky_map(
     max_abs_t = np.max(
         np.sqrt(np.sum(np.square(locations / lal.C_SI), axis=1))) + 0.005
 
-    acors, sample_rates = zip(*[
-        filter.autocorrelation(
-            mass1, mass2, psd, f_low, max_abs_t,
-            approximant, amplitude_order, phase_order)
-        for psd in psds])
-    # FIXME: Sample rate and autocorrelation length is determined only by
-    # template parameters. It would be better to compute the template once
-    # and then re-use it to compute the autocorrelation sequence with respect
-    # to each noise PSD. This would also save some cycles by evaluating the PN
-    # waveform only once.
+    acors, sample_rates = zip(
+        *[filter.autocorrelation(_, max_abs_t) for _ in HS])
     sample_rate = sample_rates[0]
     nsamples = len(acors[0])
     assert all(sample_rate == _ for _ in sample_rates)
@@ -254,7 +256,10 @@ def ligolw_sky_map(
     if method == "toa_phoa_snr":
         prob = sky_map.toa_phoa_snr(
             min_distance, max_distance, prior_distance_power, gmst, sample_rate,
-            acors, responses, locations, horizons, toas, phoas, snrs, nside)
+            acors, responses, locations, horizons, toas, phoas, snrs, nside).T
+        prob[1] *= max_horizon * fudge
+        prob[2] *= max_horizon * fudge
+        prob[3] /= np.square(max_horizon * fudge)
     elif method == "toa_snr_mcmc":
         prob = emcee_sky_map(
             logl=sky_map.log_likelihood_toa_snr,
@@ -292,18 +297,15 @@ def ligolw_sky_map(
 
 def gracedb_sky_map(
         coinc_file, psd_file, waveform, f_low, min_distance=None,
-        max_distance=None, prior_distance_power=None, nside=-1,
-        phase_convention='antifindchirp'):
+        max_distance=None, prior_distance_power=None,
+        method="toa_phoa_snr", nside=-1, chain_dump=None,
+        phase_convention='antifindchirp', f_high_truncate=1.0):
     # LIGO-LW XML imports.
     from . import ligolw
     from glue.ligolw import table as ligolw_table
     from glue.ligolw import utils as ligolw_utils
     from glue.ligolw import lsctables
     import lal.series
-
-    # Determine approximant, amplitude order, and phase order from command line arguments.
-    approximant, amplitude_order, phase_order = \
-        timing.get_approximant_and_orders_from_string(waveform)
 
     # Read input file.
     xmldoc, _ = ligolw_utils.load_fileobj(
@@ -322,29 +324,27 @@ def gracedb_sky_map(
     coinc_event_id = coinc_inspiral.coinc_event_id
     event_ids = [coinc_map.event_id for coinc_map in coinc_map_table
         if coinc_map.coinc_event_id == coinc_event_id]
-    sngl_inspirals = [(sngl_inspiral for sngl_inspiral in sngl_inspiral_table
-        if sngl_inspiral.event_id == event_id).next() for event_id in event_ids]
+    sngl_inspirals = [next((sngl_inspiral for sngl_inspiral in sngl_inspiral_table
+        if sngl_inspiral.event_id == event_id)) for event_id in event_ids]
     instruments = set(sngl_inspiral.ifo for sngl_inspiral in sngl_inspirals)
 
     # Read PSDs.
-    if psd_file is None:
-        psds = None
-    else:
-        xmldoc, _ = ligolw_utils.load_fileobj(
-            psd_file, contenthandler=lal.series.PSDContentHandler)
-        psds = lal.series.read_psd_xmldoc(xmldoc)
+    xmldoc, _ = ligolw_utils.load_fileobj(
+        psd_file, contenthandler=lal.series.PSDContentHandler)
+    psds = lal.series.read_psd_xmldoc(xmldoc)
 
-        # Rearrange PSDs into the same order as the sngl_inspirals.
-        psds = [psds[sngl_inspiral.ifo] for sngl_inspiral in sngl_inspirals]
+    # Rearrange PSDs into the same order as the sngl_inspirals.
+    psds = [psds[sngl_inspiral.ifo] for sngl_inspiral in sngl_inspirals]
 
-        # Interpolate PSDs.
-        psds = [timing.InterpolatedPSD(filter.abscissa(psd), psd.data.data)
-            for psd in psds]
+    # Interpolate PSDs.
+    psds = [timing.InterpolatedPSD(filter.abscissa(psd), psd.data.data,
+            f_high_truncate=f_high_truncate)
+        for psd in psds]
 
-    # TOA+SNR sky localization
-    prob, epoch, elapsed_time = ligolw_sky_map(sngl_inspirals, approximant,
-        amplitude_order, phase_order, f_low,
-        min_distance, max_distance, prior_distance_power,
-        nside=nside, psds=psds, phase_convention=phase_convention)
+    # Run sky localization
+    prob, epoch, elapsed_time = ligolw_sky_map(sngl_inspirals, waveform, f_low,
+        min_distance, max_distance, prior_distance_power, method=method,
+        nside=nside, psds=psds, phase_convention=phase_convention,
+        chain_dump=chain_dump)
 
     return prob, epoch, elapsed_time, instruments

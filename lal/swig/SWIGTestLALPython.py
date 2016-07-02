@@ -28,8 +28,6 @@ if not lal.NoDebug:
     mem3 = lal.CreateREAL8Vector(3)
     mem4 = lal.CreateREAL4TimeSeries("test", lal.LIGOTimeGPS(0), 100, 0.1, lal.DimensionlessUnit, 10)
     print("*** below should be an error message from CheckMemoryLeaks() ***")
-    sys.stdout.flush()
-    sys.stderr.flush()
     try:
         lal.CheckMemoryLeaks()
         expected_exception = True
@@ -881,7 +879,7 @@ del plan
 lal.CheckMemoryLeaks()
 r4inv = lal.CreateREAL4Vector(len(r4in))
 r4inv.data = r4in
-c8outv = lal.CreateCOMPLEX8Vector(len(r4in)/2 + 1)
+c8outv = lal.CreateCOMPLEX8Vector(len(r4in)//2 + 1)
 plan = lal.CreateForwardREAL4FFTPlan(len(r4in), 0)
 lal.REAL4ForwardFFT(c8outv, r4inv, plan)
 c8out = numpy.zeros(numpy.shape(c8outv.data), dtype=c8outv.data.dtype)
@@ -905,7 +903,7 @@ del plan
 lal.CheckMemoryLeaks()
 r8inv = lal.CreateREAL8Vector(len(r8in))
 r8inv.data = r8in
-c16outv = lal.CreateCOMPLEX16Vector(len(r8in)/2 + 1)
+c16outv = lal.CreateCOMPLEX16Vector(len(r8in)//2 + 1)
 plan = lal.CreateForwardREAL8FFTPlan(len(r8in), 0)
 lal.REAL8ForwardFFT(c16outv, r8inv, plan)
 c16out = numpy.zeros(numpy.shape(c16outv.data), dtype=c16outv.data.dtype)
@@ -953,7 +951,7 @@ del plan
 lal.CheckMemoryLeaks()
 r4inv = lal.CreateREAL4Vector(len(r4in))
 r4inv.data = r4in
-r4outv = lal.CreateREAL4Vector(len(r4in)/2 + 1)
+r4outv = lal.CreateREAL4Vector(len(r4in)//2 + 1)
 plan = lal.CreateForwardREAL4FFTPlan(len(r4in), 0)
 lal.REAL4PowerSpectrum(r4outv, r4inv, plan)
 r4out = numpy.zeros(numpy.shape(r4outv.data), dtype=r4outv.data.dtype)
@@ -965,7 +963,7 @@ del plan
 lal.CheckMemoryLeaks()
 r8inv = lal.CreateREAL8Vector(len(r8in))
 r8inv.data = r8in
-r8outv = lal.CreateREAL8Vector(len(r8in)/2 + 1)
+r8outv = lal.CreateREAL8Vector(len(r8in)//2 + 1)
 plan = lal.CreateForwardREAL8FFTPlan(len(r8in), 0)
 lal.REAL8PowerSpectrum(r8outv, r8inv, plan)
 r8out = numpy.zeros(numpy.shape(r8outv.data), dtype=r8outv.data.dtype)
@@ -1052,8 +1050,8 @@ assert(LIGOTimeGPS("-127965.770535834") == LIGOTimeGPS("-914984.929117316") / 7.
 t1 += 812345667.75
 assert(str(t1) == "812345678.250000000")
 assert(LIGOTimeGPS(repr(t1)) == t1)
-assert(long(t1) == 812345678)
-assert(t1.ns() == 812345678250000000L)
+assert(int(t1) == 812345678)
+assert(t1.ns() == 812345678250000000)
 assert(hash(t1) == 1049484238)
 t4struct = lal.swig_lal_test_gps()
 t4struct.t = 1234.5
@@ -1083,6 +1081,28 @@ del t4struct
 del t5
 lal.CheckMemoryLeaks()
 print("PASSED LIGOTimeGPS operations")
+print("checking LIGOTimeGPS operations (Python specific) ...")
+class my_gps_class:
+    def __init__(self, s, ns):
+        self.gpsSeconds = s
+        self.gpsNanoSeconds = ns
+tmy = my_gps_class(987, 654321)
+tsw = LIGOTimeGPS(tmy)
+assert(isinstance(tsw, LIGOTimeGPS))
+assert(tsw.gpsSeconds == 987)
+assert(tsw.gpsNanoSeconds == 654321)
+assert(tsw + tmy == tsw + tsw and isinstance(tsw + tmy, LIGOTimeGPS))
+assert(tmy + tsw == tsw + tsw and isinstance(tmy + tsw, LIGOTimeGPS))
+assert(tsw - tmy == tsw - tsw and isinstance(tsw - tmy, LIGOTimeGPS))
+assert(tmy - tsw == tsw - tsw and isinstance(tmy - tsw, LIGOTimeGPS))
+assert(tsw * tmy == tsw * tsw and isinstance(tsw * tmy, LIGOTimeGPS))
+assert(tmy * tsw == tsw * tsw and isinstance(tmy * tsw, LIGOTimeGPS))
+assert(tsw / tmy == tsw / tsw and isinstance(tsw / tmy, LIGOTimeGPS))
+assert(tmy / tsw == tsw / tsw and isinstance(tmy / tsw, LIGOTimeGPS))
+assert(lal.swig_lal_test_noptrgps(tmy) == lal.swig_lal_test_noptrgps(tsw))
+del tsw
+lal.CheckMemoryLeaks()
+print("PASSED LIGOTimeGPS operations (Python specific)")
 
 # check LALUnit operations
 print("checking LALUnit operations ...")

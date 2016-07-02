@@ -2,7 +2,7 @@
 # lalsuite_swig.m4 - SWIG configuration
 # Author: Karl Wette, 2011--2014
 #
-# serial 81
+# serial 85
 
 AC_DEFUN([_LALSUITE_CHECK_SWIG_VERSION],[
   # $0: check the version of $1, and store it in ${swig_version}
@@ -115,6 +115,18 @@ AC_DEFUN([LALSUITE_USE_SWIG],[
       SWIG="env CCACHE_DISABLE=1 ${ac_cv_path_SWIG}"
     ])
 
+    # determine SWIG Python flags
+    AC_SUBST([SWIG_PYTHON_FLAGS],[])
+    SWIG_PYTHON_FLAGS="-O -builtin -globals globalvar"
+    AC_MSG_CHECKING([if SWIG supports relative Python imports])
+    LALSUITE_VERSION_COMPARE([${swig_version}],[<],[3.0.0],
+      [AC_MSG_RESULT([no])],
+      [
+        AC_MSG_RESULT([yes])
+        SWIG_PYTHON_FLAGS="-py3 -relativeimport ${SWIG_PYTHON_FLAGS}"
+      ]
+    )
+
     # extract -I and -D flags from LALSuite library preprocessor flags
     AC_SUBST([SWIG_CPPFLAGS],[])
     for flag in ${CPPFLAGS}; do
@@ -214,8 +226,16 @@ AC_DEFUN([LALSUITE_USE_SWIG_OCTAVE],[
       AC_MSG_ERROR([Octave version ${octave_min_version} or later is required])
     ])
     LALSUITE_VERSION_COMPARE([${octave_version}],[>=],[3.8.0],[
-      swig_min_version=2.0.12
-      swig_min_version_info="for Octave version ${octave_version}"
+      LALSUITE_VERSION_COMPARE([${swig_min_version}],[<],[2.0.12],[
+        swig_min_version=2.0.12
+        swig_min_version_info="for Octave version ${octave_version}"
+      ])
+    ])
+    LALSUITE_VERSION_COMPARE([${octave_version}],[>=],[4.0.0],[
+      LALSUITE_VERSION_COMPARE([${swig_min_version}],[<],[3.0.7],[
+        swig_min_version=3.0.7
+        swig_min_version_info="for Octave version ${octave_version}"
+      ])
     ])
 
     # determine where to install Octave bindings: take versioned site .oct file
@@ -279,12 +299,11 @@ AC_DEFUN([LALSUITE_USE_SWIG_OCTAVE],[
     AC_SUBST([SWIG_OCTAVE_LDFLAGS],[])
     swig_octave_ldflags=
     for arg in LFLAGS LIBOCTINTERP LIBOCTAVE LIBCRUFT OCT_LINK_OPTS OCT_LINK_DEPS; do
-      sep=""
       for flag in `${mkoctfile} -p ${arg} 2>/dev/null`; do
         AS_CASE([${flag}],
           [-L/usr/lib|-L/usr/lib64],[:],
-          [-Xlinker],[swig_octave_ldflags="${swig_octave_ldflags} -Wl"; sep=","; continue],
-          [swig_octave_ldflags="${swig_octave_ldflags}${sep}${flag}"; sep=" "]
+          [-Xlinker],[swig_octave_ldflags="${swig_octave_ldflags}-Wl,"],
+          [swig_octave_ldflags="${swig_octave_ldflags}${flag} "]
         )
       done
     done
@@ -384,7 +403,7 @@ EOD`]
     python_out=[`cat <<EOD | ${PYTHON} - 2>/dev/null
 import sys, os
 import distutils.sysconfig as cfg
-sys.stdout.write(cfg.get_config_var('LINKFORSHARED'))
+sys.stdout.write(cfg.get_config_var('LDFLAGS'))
 sys.stdout.write(' -L' + cfg.get_python_lib())
 sys.stdout.write(' -L' + cfg.get_python_lib(plat_specific=1))
 sys.stdout.write(' -L' + cfg.get_python_lib(plat_specific=1,standard_lib=1))
@@ -393,12 +412,12 @@ EOD`]
     AS_IF([test $? -ne 0],[
       AC_MSG_ERROR([could not determine Python linker flags])
     ])
-    sep=""
+    swig_python_ldflags=
     for flag in ${python_out}; do
       AS_CASE([${flag}],
         [-L/usr/lib|-L/usr/lib64],[:],
-        [-Xlinker],[swig_python_ldflags="${swig_python_ldflags} -Wl"; sep=","; continue],
-        [swig_python_ldflags="${swig_python_ldflags}${sep}${flag}"; sep=" "]
+        [-Xlinker],[swig_python_ldflags="${swig_python_ldflags}-Wl,"],
+        [swig_python_ldflags="${swig_python_ldflags}${flag} "]
       )
     done
     LALSUITE_CHECK_LINK_FLAGS([

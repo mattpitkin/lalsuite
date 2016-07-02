@@ -1382,12 +1382,7 @@ static int SEOBNRv2ROMDoubleSpinCore(
   //   XLAL_PRINT_WARNING("Warning: Depending on specified frequency sequence correction to time of coalescence may not be accurate.\n");
 
   // Get SEOBNRv2 ringdown frequency for 22 mode
-  // XLALSimInspiralGetFinalFreq wants masses in SI units, so unfortunately we need to convert back
-  double q = (1.0 + sqrt(1.0 - 4.0*eta) - 2.0*eta) / (2.0*eta);
-  double Mtot_SI = Mtot_sec / LAL_MTSUN_SI * LAL_MSUN_SI;
-  double m1_SI = Mtot_SI * 1.0/(1.0+q);
-  double m2_SI = Mtot_SI * q/(1.0+q);
-  double Mf_final = XLALSimInspiralGetFinalFreq(m1_SI, m2_SI, 0,0,chi1, 0,0,chi2, SEOBNRv2) * Mtot_sec;
+  double Mf_final = SEOBNRROM_Ringdown_Mf_From_Mtot_Eta(Mtot_sec, eta, chi1, chi2, SEOBNRv2);
 
   UINT4 L = freqs->length;
   // prevent gsl interpolation errors
@@ -1436,8 +1431,8 @@ static int SEOBNRv2ROMDoubleSpinCore(
  *
  * \brief C code for SEOBNRv2 reduced order model
  * (double spin high resolution low mass version).
- * See CQG 31 195010, 2014, arXiv:1402.4146 for details.
- * Further details in M. Puerrer, https://dcc.ligo.org/P1500175.
+ * See CQG 31 195010, 2014, arXiv:1402.4146 for the basic approach.
+ * Further details in PRD 93, 064041, 2016, arXiv:1512.02248.
  *
  * This is a frequency domain model that approximates the time domain SEOBNRv2 model.
  *
@@ -1731,11 +1726,7 @@ static int SEOBNRv2ROMDoubleSpinTimeFrequencySetup(
   );
 
   // Get SEOBNRv2 ringdown frequency for 22 mode
-  double q = (1.0 + sqrt(1.0 - 4.0*eta) - 2.0*eta) / (2.0*eta);
-  double Mtot_SI = *Mtot_sec / LAL_MTSUN_SI * LAL_MSUN_SI;
-  double m1_SI = Mtot_SI * 1.0/(1.0+q);
-  double m2_SI = Mtot_SI * q/(1.0+q);
-  *Mf_final = XLALSimInspiralGetFinalFreq(m1_SI, m2_SI, 0,0,chi1, 0,0,chi2, SEOBNRv2) * (*Mtot_sec);
+  *Mf_final = SEOBNRROM_Ringdown_Mf_From_Mtot_Eta(*Mtot_sec, eta, chi1, chi2, SEOBNRv2);
 
   SEOBNRROMdataDS_coeff_Cleanup(romdata_coeff_lo);
   SEOBNRROMdataDS_coeff_Cleanup(romdata_coeff_hi);
@@ -1785,8 +1776,8 @@ int XLALSimIMRSEOBNRv2ROMDoubleSpinHITimeOfFrequency(
     XLAL_ERROR(ret);
 
   // ROM frequency bounds in Mf
-  double Mf_ROM_min = 0.00053;
-  double Mf_ROM_max = 0.135;
+  double Mf_ROM_min = 0.0000985;
+  double Mf_ROM_max = 0.3;
 
   // Time correction is t(f_final) = 1/(2pi) dphi/df (f_final)
   double t_corr = gsl_spline_eval_deriv(spline_phi, Mf_final, acc_phi) / (2*LAL_PI); // t_corr / M
